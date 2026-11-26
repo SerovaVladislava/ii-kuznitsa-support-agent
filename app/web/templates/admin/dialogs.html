@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% block title %}Диалоги{% endblock %}
+{% block content %}
+<h1>Диалоги</h1>
+<p class="page-hint">Все обращения из чата, почты и звонков. «Требуют внимания» — клиент ждёт менеджера или диалог уже у менеджера.
+  Нажмите на строку, чтобы открыть переписку, ответить клиенту или проверить тип обращения.</p>
+<div class="toolbar filters">
+  {% for key, label in [('active', 'Требуют внимания'), ('waiting_operator', 'Ждут менеджера'), ('operator', 'У менеджера'), ('bot', 'Ведёт ассистент'), ('closed', 'Закрытые'), ('', 'Все')] %}
+    <a href="?status={{ key }}{% if channel %}&channel={{ channel }}{% endif %}" class="{{ 'on' if status == key }}">{{ label }}</a>
+  {% endfor %}
+  <span class="muted" style="margin-left:12px">Канал:</span>
+  <a href="?status={{ status }}" class="{{ 'on' if not channel }}">все</a>
+  {% for key, label in CHANNELS.items() %}<a href="?status={{ status }}&channel={{ key }}" class="{{ 'on' if channel == key }}">{{ label }}</a>{% endfor %}
+</div>
+<div class="card" style="padding:0">
+  {% if items %}
+  <table class="t">
+    <tr><th>Клиент</th><th>Последнее сообщение</th><th>Тип обращения</th><th>Статус</th><th>Канал</th><th class="num">Обновлён</th></tr>
+    {% for d in items %}
+    <tr onclick="location.href='/admin/dialogs/{{ d.id }}'" style="cursor:pointer">
+      <td><b>{{ d.customer_company or d.customer_name or d.external_id or ('Посетитель #' ~ d.id) }}</b>
+        {% if d.unread %}<span class="pill">{{ d.unread }}</span>{% endif %}
+        <div class="small muted">{{ d.customer_phone or '' }} {{ d.customer_email or '' }}</div></td>
+      <td style="max-width:460px">{{ (d.last_text or '')[:140] }}{% if d.escalation_reason and d.status in ('waiting_operator', 'operator') %}<div class="small" style="color:var(--amber)">{{ REASONS.get(d.escalation_reason, '') }}</div>{% endif %}</td>
+      <td style="min-width:180px;max-width:240px">{% if d.request_type %}<div class="small" style="font-weight:600">{{ d.request_type }}</div>
+        <div class="clf-meta small" style="margin:4px 0 0">{% if d.request_type_source == 'manager' %}<span class="tag approved">менеджер</span>{% else %}<span class="tag conf {{ 'lowc' if d.request_type_conf < low_conf }}">{{ (d.request_type_conf * 100)|round|int }}%</span>{% if d.request_type_conf < low_conf %}<span class="tag low">проверить</span>{% endif %}{% endif %}</div>
+        {% if d.it_topic %}<div class="small muted" style="margin-top:4px">{{ d.it_topic }}</div>{% endif %}
+        {% else %}<span class="muted small">—</span>{% endif %}</td>
+      <td><span class="tag {{ d.status }}">{{ STATUSES[d.status] }}</span></td>
+      <td>{{ CHANNELS.get(d.channel, d.channel) }}</td>
+      <td class="num muted">{{ d.updated_at|dt }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Диалогов нет</div>{% endif %}
+</div>
+{% endblock %}

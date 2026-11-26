@@ -1,0 +1,45 @@
+{% extends "admin/base.html" %}
+{% block title %}Товар{% endblock %}
+{% block content %}
+<h1>{{ item.name or 'Новый товар' }}</h1>
+<div class="card" style="max-width: 900px">
+  <form method="post" action="/admin/catalog/save">
+    <input type="hidden" name="product_id" value="{{ item.id or '' }}">
+    <div class="grid2">
+      <div><label>Артикул</label><input type="text" name="sku" value="{{ item.sku }}" required></div>
+      <div><label>Вендор</label><input type="text" name="vendor" value="{{ item.vendor }}"></div>
+    </div>
+    <label>Наименование</label><input type="text" name="name" value="{{ item.name }}" required>
+    <div class="grid2">
+      <div><label>Продукт (объединяет варианты)</label><input type="text" name="family" value="{{ item.family }}"></div>
+      <div><label>Редакция</label><input type="text" name="edition" value="{{ item.edition }}"></div>
+      <div><label>Категория</label><input type="text" name="category" value="{{ item.category }}"></div>
+      <div><label>Ссылка на страницу товара</label><input type="text" name="url" value="{{ item.url }}"></div>
+    </div>
+    <label>Описание</label><textarea name="description" rows="3">{{ item.description }}</textarea>
+    <label>Ключевые слова, синонимы, задачи (помогают поиску)</label><input type="text" name="tags" value="{{ item.tags }}">
+    <div class="grid2">
+      <div><label>Цена, ₽ (0 — по запросу)</label><input type="text" name="price" value="{{ item.price }}"></div>
+      <div><label>Цена</label><select name="pricing"><option value="per_unit" {% if item.pricing != 'package' %}selected{% endif %}>за 1 единицу (польз./узел)</option><option value="package" {% if item.pricing == 'package' %}selected{% endif %}>за пакет</option></select></div>
+      <div><label>Единица</label><input type="text" name="unit" value="{{ item.unit }}"></div>
+      <div><label>Тип покупки</label><select name="purchase_type">{% for v, l in [('', '—'), ('new', 'новая лицензия'), ('renewal', 'продление'), ('upgrade', 'переход')] %}<option value="{{ v }}" {% if item.purchase_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div><label>Тип лицензии</label><select name="license_type">{% for v, l in [('', '—'), ('subscription', 'подписка'), ('perpetual', 'бессрочная'), ('service', 'услуга')] %}<option value="{{ v }}" {% if item.license_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div><label>Срок, месяцев (0 — бессрочно)</label><input type="number" name="term_months" value="{{ item.term_months }}"></div>
+      <div><label>Пользователей/устройств от</label><input type="number" name="users_min" value="{{ item.users_min }}"></div>
+      <div><label>до (0 — без ограничения)</label><input type="number" name="users_max" value="{{ item.users_max }}"></div>
+      <div><label>Развёртывание</label><select name="deployment">{% for v, l in [('', '—'), ('on-prem', 'свои серверы'), ('cloud', 'облако'), ('hybrid', 'оба варианта')] %}<option value="{{ v }}" {% if item.deployment == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div><label>Платформы</label><input type="text" name="platforms" value="{{ item.platforms }}"></div>
+      <div><label>Сертификаты</label><input type="text" name="certificates" value="{{ item.certificates }}"></div>
+      <div><label>Ставка НДС, % (пусто — по умолчанию, 0 — без НДС)</label><input type="text" name="vat_rate" value="{{ '' if item.vat_rate is none else item.vat_rate }}"></div>
+      <div><label>Срок поставки, раб. дней</label><input type="number" name="lead_time_days" value="{{ item.lead_time_days }}"></div>
+      <div><label>Минимальное количество</label><input type="number" name="min_order_qty" value="{{ item.min_order_qty }}"></div>
+    </div>
+    <label><input type="checkbox" name="is_russian" value="1" {% if item.is_russian %}checked{% endif %}> Российское ПО (в реестре)</label>
+    <label><input type="checkbox" name="active" value="1" {% if item.active %}checked{% endif %}> Доступен для продажи</label>
+    <div class="row" style="margin-top: 14px">
+      <button class="btn primary" type="submit">Сохранить</button>
+      <a class="btn" href="/admin/catalog">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "docs/base_doc.html" %}
+{% block body %}
+{% if doc.status == 'draft' %}<div class="draft">ЧЕРНОВИК — на проверке у менеджера</div>{% endif %}
+{% if not company.bank_name %}<p class="small" style="color:#c01e2e">Банковские реквизиты поставщика не заполнены — укажите их в «Настройках» панели менеджера.</p>{% endif %}
+<table class="grid">
+  <tr>
+    <td colspan="2" rowspan="2" style="width: 60%;">{{ company.bank_name }}<br><span class="small muted">Банк получателя</span></td>
+    <td style="width: 10%;">БИК</td><td>{{ company.bik }}</td>
+  </tr>
+  <tr><td>Сч. №</td><td>{{ company.corr_account }}</td></tr>
+  <tr>
+    <td>ИНН {{ company.inn }}</td><td>КПП {{ company.kpp }}</td>
+    <td rowspan="2">Сч. №</td><td rowspan="2">{{ company.account }}</td>
+  </tr>
+  <tr><td colspan="2">{{ company.name }}<br><span class="small muted">Получатель</span></td></tr>
+</table>
+
+<h1 style="border-bottom: 2px solid #111; padding-bottom: 6px;">Счёт на оплату № {{ doc.number }} от {{ created }}</h1>
+
+<table>
+  <tr><td style="width: 110px; vertical-align: top;">Поставщик<br>(Исполнитель):</td>
+      <td><b>{{ company.name }}, ИНН {{ company.inn }}, КПП {{ company.kpp }}, {{ company.address }}, тел.: {{ company.phone }}</b></td></tr>
+  <tr><td style="vertical-align: top; padding-top: 8px;">Покупатель<br>(Заказчик):</td>
+      <td style="padding-top: 8px;"><b>{{ buyer_line }}</b></td></tr>
+  {% if doc.totals.quote_number %}<tr><td>Основание:</td><td>Коммерческое предложение № {{ doc.totals.quote_number }}</td></tr>{% endif %}
+</table>
+<br>
+<table class="grid">
+  <thead><tr><th>№</th><th>Товары (работы, услуги)</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>В т.ч. НДС</th></tr></thead>
+  <tbody>
+  {% for ln in doc['items'] %}
+    <tr>
+      <td class="center">{{ loop.index }}</td>
+      <td>{{ ln.name }} <span class="small muted">({{ ln.sku }})</span></td>
+      <td class="num">{{ ln.quantity|qty }}</td>
+      <td class="center">{{ ln.unit }}</td>
+      <td class="num">{{ ln.price_final|money }}</td>
+      <td class="num">{{ ln.amount|money }}</td>
+      <td class="num">{% if ln.vat_rate %}{{ ln.vat_amount|money }}{% else %}Без НДС{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<table class="totals">
+  <tr><td>Итого:</td><td class="num">{{ doc.totals.total|money }}</td></tr>
+  <tr><td>В том числе НДС:</td><td class="num">{% if doc.totals.vat_amount %}{{ doc.totals.vat_amount|money }}{% else %}Без НДС{% endif %}</td></tr>
+  <tr><td>Всего к оплате:</td><td class="num">{{ doc.totals.total|money }}</td></tr>
+</table>
+<p>Всего наименований {{ doc['items']|length }}, на сумму {{ doc.totals.total|money }} руб.<br><b>{{ amount_words }}</b></p>
+<p class="small" style="border-bottom: 2px solid #111; padding-bottom: 8px;">
+  Оплатить не позднее {{ valid_until }}. Оплата данного счёта означает согласие с условиями поставки товара.
+  Уведомление об оплате обязательно, в противном случае не гарантируется наличие товара на складе.
+  Товар отпускается по факту прихода денег на р/с Поставщика, самовывозом, при наличии доверенности и паспорта.
+</p>
+<div class="sign">
+  <div>Руководитель <span class="muted">/ {{ company.director }} /</span></div>
+  <div>Бухгалтер <span class="muted">/ {{ company.accountant }} /</span></div>
+</div>
+{% endblock %}

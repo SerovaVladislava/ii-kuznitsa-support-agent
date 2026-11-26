@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% block title %}Клиенты{% endblock %}
+{% block content %}
+<h1>Клиенты и лиды</h1>
+<p class="page-hint">Сюда попадают все, кто оставил в чате имя, телефон, почту или реквизиты. Карточку можно поправить в диалоге — блок «Клиент» справа.</p>
+<div class="card" style="padding:0">
+  {% if items %}
+  <table class="t">
+    <tr><th>Клиент</th><th>Контакты</th><th>Реквизиты</th><th class="num">КП / счета</th><th>Создан</th></tr>
+    {% for c in items %}
+    <tr>
+      <td><b>{{ c.company or c.name or '—' }}</b>{% if c.company and c.name %}<div class="small muted">{{ c.name }}</div>{% endif %}
+        {% if c.last_dialog_id %}<div class="small"><a href="/admin/dialogs/{{ c.last_dialog_id }}">последний диалог →</a></div>{% endif %}</td>
+      <td>{{ c.phone or '' }}<div>{{ c.email or '' }}</div></td>
+      <td class="small">{% if c.inn %}ИНН {{ c.inn }}{% endif %}{% if c.kpp %}, КПП {{ c.kpp }}{% endif %}<div class="muted">{{ c.address }}</div></td>
+      <td class="num">{{ c.quotes }} / {{ c.invoices }}</td>
+      <td class="muted">{{ c.created_at|dt }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Клиентов пока нет</div>{% endif %}
+</div>
+{% endblock %}

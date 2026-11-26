@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block title %}База знаний{% endblock %}
+{% block content %}
+<h1>База знаний</h1>
+<div class="toolbar">
+  <form method="get"><input type="text" name="q" value="{{ q }}" placeholder="Найти как клиент: «можно отсрочку?»" style="width:340px"><button class="btn">Найти</button></form>
+  <a class="btn primary" href="/admin/kb/new">+ Статья</a>
+  <a class="btn" href="/admin/kb/candidates">Кандидаты из ответов менеджеров {% if nav_candidates %}<span class="pill blue">{{ nav_candidates }}</span>{% endif %}</a>
+  <form method="post" action="/admin/kb/import" enctype="multipart/form-data" style="margin-left:auto">
+    <input type="file" name="file" accept=".csv" required><button class="btn">Импорт CSV</button>
+  </form>
+</div>
+<p class="small muted">Ассистент отвечает на вопросы об условиях только по этим статьям. CSV для импорта: колонки <code>question;answer;tags</code>. Поиск понимает разные формулировки и опечатки.</p>
+<div class="card" style="padding:0">
+  {% if items %}
+  <table class="t">
+    <tr><th>Вопрос</th><th>Ответ</th><th class="num">Использований</th><th></th></tr>
+    {% for a in items %}
+    <tr>
+      <td style="width:30%"><a href="/admin/kb/{{ a.id }}"><b>{{ a.question }}</b></a>{% if not a.active %} <span class="tag">выключена</span>{% endif %}
+        <div class="small muted">{{ a.tags }}{% if a.source == 'operator' %} · из ответа менеджера{% endif %}</div></td>
+      <td class="small">{{ a.answer[:220] }}{% if a.answer|length > 220 %}…{% endif %}</td>
+      <td class="num">{{ a.hits }}</td>
+      <td class="num"><a class="btn small" href="/admin/kb/{{ a.id }}">Изменить</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Ничего не найдено</div>{% endif %}
+</div>
+{% endblock %}

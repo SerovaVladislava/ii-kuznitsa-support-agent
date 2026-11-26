@@ -1,0 +1,118 @@
+{% extends "admin/base.html" %}
+{% block title %}Сводка{% endblock %}
+{% block content %}
+<div class="row" style="justify-content: space-between; margin-bottom: 14px;">
+  <h1 style="margin:0">Сводка</h1>
+  <div class="filters row">
+    {% for d, label in [(1, 'Сегодня'), (7, '7 дней'), (30, '30 дней'), (90, '90 дней'), (365, 'Год')] %}
+      <a href="?days={{ d }}" class="{{ 'on' if stats.days == d }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card todo">
+  <h2 style="margin:0 0 10px">Что сделать сейчас</h2>
+  {% if nav_waiting or nav_drafts or nav_review or nav_candidates %}
+  <div class="todo-list">
+    {% if nav_waiting %}<a href="/admin/decisions" class="todo-item urgent"><span class="n">{{ nav_waiting }}</span><span>Клиенты ждут решения менеджера (скидка, особые условия)<small>норматив ответа — {{ assistant.operator_sla_minutes }} мин</small></span><b>Открыть →</b></a>{% endif %}
+    {% if nav_drafts %}<a href="/admin/decisions" class="todo-item"><span class="n">{{ nav_drafts }}</span><span>Черновики КП и счетов — проверить и отправить клиенту<small>ассистент подготовил, нужна ваша кнопка «Утвердить»</small></span><b>Открыть →</b></a>{% endif %}
+    {% if nav_review %}<a href="/admin/classifier" class="todo-item"><span class="n">{{ nav_review }}</span><span>Обращения с неуверенным типом — подтвердить или исправить<small>одна кнопка на обращение, так классификатор учится</small></span><b>Открыть →</b></a>{% endif %}
+    {% if nav_candidates %}<a href="/admin/kb/candidates" class="todo-item"><span class="n">{{ nav_candidates }}</span><span>Ответы менеджеров, которые можно добавить в базу знаний<small>тогда ассистент будет отвечать на такие вопросы сам</small></span><b>Открыть →</b></a>{% endif %}
+  </div>
+  {% else %}<div class="muted">Новых задач нет: клиентов ведёт ассистент, все КП отправлены.</div>{% endif %}
+</div>
+
+<div class="kpis five">
+  <div class="kpi accent">
+    <div class="l">Сэкономлено времени сотрудников</div>
+    <div class="v">{{ '%.1f'|format(stats.saved_hours) }} ч</div>
+    <div class="h">норматив {{ assistant.minutes_per_dialog }} мин на диалог</div>
+  </div>
+  <div class="kpi">
+    <div class="l">Обращений</div>
+    <div class="v">{{ stats.dialogs_total }}</div>
+    <div class="h">{% for c in stats.by_channel %}{{ CHANNELS.get(c.channel, c.channel) }}: {{ c.n }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+  </div>
+  <div class="kpi">
+    <div class="l">Решено без сотрудника</div>
+    <div class="v">{{ stats.bot_only_share|pct }}</div>
+    <div class="h">передано менеджеру: {{ stats.escalated }}</div>
+  </div>
+  <div class="kpi {{ 'warn' if stats.waiting_now }}">
+    <div class="l">Скорость ответа</div>
+    <div class="v">{{ '%.1f'|format(stats.avg_bot_seconds) }} с</div>
+    <div class="h">{% if stats.waiting_now %}<a href="/admin/decisions">ждут менеджера: {{ stats.waiting_now }}</a>{% elif stats.decisions %}менеджер решает за {{ (stats.avg_decision_seconds // 60)|int }}:{{ '%02d'|format((stats.avg_decision_seconds % 60)|int) }}{% else %}ответ ассистента{% endif %}</div>
+  </div>
+  <div class="kpi">
+    <div class="l">КП и счета</div>
+    <div class="v">{{ stats.quotes + stats.invoices }}</div>
+    <div class="h">на {{ (stats.quotes_amount + stats.invoices_amount)|money }} ₽ · конверсия {{ stats.conversion_to_docs|pct }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Экономика <span class="muted small">— по фактическому расходу токенов и нормативам из «Настроек»</span></h2>
+  <div class="kpis" style="margin:0">
+    <div class="kpi"><div class="l">Стоимость ИИ за период</div><div class="v">{{ stats.economics.llm_rub|money }} ₽</div><div class="h">${{ '%.2f'|format(stats.economics.llm_usd) }}</div></div>
+    <div class="kpi"><div class="l">Стоимость ИИ на один диалог</div><div class="v">{{ stats.economics.per_dialog_rub|money }} ₽</div><div class="h">{% if not stats.economics.per_dialog_rub %}появится после диалогов в ИИ-режиме{% else %}среднее по диалогам с ИИ{% endif %}</div></div>
+    <div class="kpi accent"><div class="l">План: {{ stats.economics.plan_month_dialogs }} обращений в месяц</div><div class="v">{{ stats.economics.plan_month_llm_rub|money }} ₽</div><div class="h">ИИ в месяц против {{ stats.economics.plan_month_human_rub|money }} ₽ работы сотрудников ({{ stats.economics.plan_month_human_hours|round|int }} ч)</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Обращения по дням <span class="muted small">(лаймовым — переданные менеджеру)</span></h2>
+  <div class="bar">
+    {% for d in stats.daily %}
+      <div style="height: {{ (d.dialogs / max_daily * 100)|round(1) }}%" title="{{ d.day }}: {{ d.dialogs }} обращений, {{ d.escalated }} менеджеру"><span style="height: {{ ((d.escalated / d.dialogs * 100) if d.dialogs else 0)|round(1) }}%"></span></div>
+    {% endfor %}
+  </div>
+  <div class="bar-labels">{% for d in stats.daily %}<span>{{ d.day[8:10] }}</span>{% endfor %}</div>
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h2>Самые частые вопросы <span class="muted small">— закрыты базой знаний</span></h2>
+    {% if stats.top_questions %}
+    <table class="t">
+      {% for q in stats.top_questions %}<tr><td><a href="/admin/kb/{{ q.id }}">{{ q.question }}</a></td><td class="num">{{ q.n }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">Пока нет данных</div>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Вопросы без ответа <span class="muted small">— пополните базу знаний</span></h2>
+    {% if stats.unanswered %}
+    <table class="t">
+      {% for q in stats.unanswered %}<tr>
+        <td>{{ q.query }}<div class="small muted">{{ q.last_at|dt }}{% if q.n > 1 %} · {{ q.n }} раза{% endif %}</div></td>
+        <td class="num"><a class="btn small" href="/admin/kb/new?question={{ q.query|urlencode }}">+ В базу</a></td>
+      </tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">Все вопросы закрыты базой знаний</div>{% endif %}
+  </div>
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h2>Сделки под риском потери</h2>
+    {% if stats.follow_ups %}
+    <table class="t">
+      <tr><th>Документ</th><th>Клиент</th><th class="num">Сумма</th></tr>
+      {% for d in stats.follow_ups %}<tr>
+        <td><a href="/d/{{ d.token }}" target="_blank">{{ d.number }}</a><div class="small" style="color:var(--amber)">{{ d.problem }}</div></td>
+        <td>{{ d.customer_company or d.customer_name or '—' }}<div class="small muted">{{ d.customer_phone }} {{ d.customer_email }}</div>{% if d.dialog_id %}<a class="small" href="/admin/dialogs/{{ d.dialog_id }}">диалог →</a>{% endif %}</td>
+        <td class="num">{{ d.totals.total|money }} ₽</td>
+      </tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">Нет зависших КП и просроченных счетов</div>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Причины передачи менеджеру</h2>
+    {% if stats.reasons %}
+    <table class="t">{% for r in stats.reasons %}<tr><td>{{ REASONS.get(r.reason, r.reason or '—') }}</td><td class="num">{{ r.n }}</td></tr>{% endfor %}</table>
+    {% else %}<div class="empty">Передач не было</div>{% endif %}
+    {% if stats.usage.input_tokens %}
+    <p class="small muted" style="margin-top:14px">Использование ИИ: {{ stats.usage.input_tokens }} входных токенов (из кэша {{ stats.usage.cache_read }}), {{ stats.usage.output_tokens }} выходных. Доля ответов ИИ: {{ stats.llm_share|pct }}.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

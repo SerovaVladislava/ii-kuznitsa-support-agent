@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+.env
+.pytest_cache/
+materials/
+reports/
+
+# локальные настройки и временные файлы
+.claude/settings.local.json
+*.sqlite3
+*.sqlite3-*
+*.tmp

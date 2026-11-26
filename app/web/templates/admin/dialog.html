@@ -1,0 +1,189 @@
+{% extends "admin/base.html" %}
+{% block title %}Диалог #{{ dialog.id }}{% endblock %}
+{% block content %}
+<div class="row" style="justify-content: space-between; margin-bottom: 14px;">
+  <h1 style="margin:0">Диалог #{{ dialog.id }} <span class="tag {{ dialog.status }}" id="status-tag">{{ STATUSES[dialog.status] }}</span>
+    <span class="muted small">{{ CHANNELS.get(dialog.channel, dialog.channel) }}{% if dialog.external_id %} · {{ dialog.external_id }}{% endif %}</span></h1>
+  <div class="row">
+    {% if dialog.status != 'operator' %}<form method="post" action="/admin/dialogs/{{ dialog.id }}/take"><button class="btn">Взять в работу</button></form>{% endif %}
+    {% if dialog.status != 'bot' %}<form method="post" action="/admin/dialogs/{{ dialog.id }}/return"><button class="btn">Вернуть ассистенту</button></form>{% endif %}
+    {% if dialog.status != 'closed' %}<form method="post" action="/admin/dialogs/{{ dialog.id }}/close"><button class="btn">Закрыть</button></form>{% endif %}
+  </div>
+</div>
+
+<div class="chat">
+  <div>
+    {% if dialog.escalation_summary and dialog.status in ('waiting_operator', 'operator') %}
+      <div class="summary"><b>{{ REASONS.get(dialog.escalation_reason, 'Передан менеджеру') }}.</b> {{ dialog.escalation_summary }}</div>
+    {% endif %}
+    {% if dialog.status == 'waiting_operator' %}
+    <div class="card row">
+      <form method="post" action="/admin/decisions/{{ dialog.id }}/approve-discount" class="row">
+        <input type="hidden" name="next" value="/admin/dialogs/{{ dialog.id }}">
+        <input type="number" step="0.5" min="0.5" max="50" name="percent" value="{{ '%g'|format(dialog.state.requested_discount_percent or max_discount) }}" style="width:80px">
+        <button class="btn primary">Согласовать скидку, %</button>
+      </form>
+      <form method="post" action="/admin/decisions/{{ dialog.id }}/decline" class="row">
+        <input type="hidden" name="next" value="/admin/dialogs/{{ dialog.id }}">
+        <button class="btn">Отказать (стандартные условия)</button>
+      </form>
+    </div>
+    {% endif %}
+    <div class="card">
+      <div class="msgs" id="msgs">
+        {% for m in messages %}
+        <div class="msg {{ m.role }}" data-id="{{ m.id }}">
+          <div class="meta">{{ {'client': 'Клиент', 'bot': 'Ассистент', 'operator': 'Менеджер'}.get(m.role, m.role) }} · {{ m.created_at|dt }}
+            {%- if m.role == 'bot' and m.meta.mode %} · {{ 'ИИ' if m.meta.mode == 'llm' else 'офлайн' }}{% if m.meta.ms %} · {{ '%.1f'|format(m.meta.ms / 1000) }} с{% endif %}{% endif %}
+            {%- if m.meta.tools %}<span title="{{ m.meta.tools|join(', ') }}"> · инструменты: {{ m.meta.tools|length }}</span>{% endif %}</div>
+          <div class="text">{{ m.text }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <form method="post" action="/admin/dialogs/{{ dialog.id }}/reply" id="reply-form">
+        <textarea name="text" id="reply" placeholder="Ответ клиенту{% if dialog.channel == 'email' %} (уйдёт письмом){% elif dialog.channel == 'telegram' %} (уйдёт в Telegram){% endif %}…  Ctrl+Enter — отправить" required></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" type="submit">Отправить</button>
+          <button class="btn" type="button" id="draft-btn">✨ Предложить ответ</button>
+          <span class="small muted" id="draft-info"></span>
+        </div>
+        <p class="small muted" style="margin-bottom:0">После ответа менеджера ассистент в этом диалоге молчит, пока вы не вернёте диалог ассистенту. Ваш ответ на вопрос клиента попадёт в кандидаты для базы знаний.</p>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Классификация</h2>
+      {% set cl = dialog.classification or {} %}
+      {% for head, title in clf_heads.items() %}
+      {% set r = cl.get(head) %}
+      <div class="clf-head">
+        <div class="small muted">{{ title }}</div>
+        {% if r %}
+          <div class="clf-cat">{{ r.category }}</div>
+          <div class="clf-meta small">
+            {% if r.source == 'manager' %}<span class="tag approved">поставил менеджер</span>
+              {% if r.previous and r.previous != r.category %}<span class="muted">было: {{ r.previous }}</span>{% endif %}
+            {% else %}
+              <span class="tag conf {{ 'lowc' if r.low_confidence }}">{{ (r.confidence * 100)|round|int }}%</span>
+              <span class="muted">{{ 'ключевые слова' if r.source == 'keyword' else 'модель' }}</span>
+              {% if r.low_confidence %}<span class="tag low">проверить</span>{% endif %}
+            {% endif %}
+          </div>
+          {% if r.matched %}<div class="small muted">Сработали: {{ r.matched|join(', ') }}</div>{% endif %}
+          {% if r.top and r.source != 'manager' %}
+            {% for t in r.top %}<div class="hbar"><span class="lbl" title="{{ t.category }}">{{ t.category }}</span><span class="track"><i class="{{ 'lime' if t.category == r.category }}" style="width: {{ (t.p * 100)|round|int }}%"></i></span><b>{{ (t.p * 100)|round|int }}%</b></div>{% endfor %}
+          {% endif %}
+        {% else %}<div class="muted small" style="margin:4px 0">не определено</div>{% endif %}
+        {% if r and r.source != 'manager' %}
+        <form method="post" action="/admin/dialogs/{{ dialog.id }}/classify" style="margin-top:10px">
+          <input type="hidden" name="head" value="{{ head }}"><input type="hidden" name="category" value="{{ r.category }}">
+          <button class="btn small lime" title="Подтвердить — пример попадёт в обучение">✓ Верно</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/admin/dialogs/{{ dialog.id }}/classify" class="clf-form">
+          <input type="hidden" name="head" value="{{ head }}">
+          <select name="category" aria-label="{{ title }}" required>
+            <option value="" disabled {{ 'selected' if not (r and r.source == 'manager') }}>Другой вариант…</option>
+            {% for c in clf_categories[head] %}<option value="{{ c }}" {{ 'selected' if r and r.source == 'manager' and r.category == c }}>{{ c }}</option>{% endfor %}
+          </select>
+          <button class="btn small">Исправить</button>
+        </form>
+        {% if r and r.source == 'manager' %}
+        <form method="post" action="/admin/dialogs/{{ dialog.id }}/classify" style="margin-top:6px">
+          <input type="hidden" name="head" value="{{ head }}"><input type="hidden" name="category" value="">
+          <button class="btn small" style="background:transparent;box-shadow:none;padding-left:0;color:var(--muted)">↺ Вернуть автоматическое определение</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if cl.keywords %}<div class="small muted" style="margin-top:10px">Ключевые слова обращения: {{ cl.keywords|join(', ') }}</div>{% endif %}
+    </div>
+    <div class="card">
+      <h2>Клиент</h2>
+      <form method="post" action="/admin/dialogs/{{ dialog.id }}/customer">
+        {% set c = customer or {} %}
+        <div class="grid2">
+          <div><label>Имя</label><input type="text" name="name" value="{{ c.name or '' }}"></div>
+          <div><label>Телефон</label><input type="text" name="phone" value="{{ c.phone or '' }}"></div>
+        </div>
+        <label>Email</label><input type="text" name="email" value="{{ c.email or '' }}">
+        <label>Организация</label><input type="text" name="company" value="{{ c.company or '' }}">
+        <div class="grid2">
+          <div><label>ИНН</label><input type="text" name="inn" value="{{ c.inn or '' }}"></div>
+          <div><label>КПП</label><input type="text" name="kpp" value="{{ c.kpp or '' }}"></div>
+        </div>
+        <label>Адрес</label><input type="text" name="address" value="{{ c.address or '' }}">
+        <div style="margin-top:10px"><button class="btn small">Сохранить</button></div>
+      </form>
+    </div>
+    {% if cart and cart.lines %}
+    <div class="card">
+      <h2>Расчёт в диалоге</h2>
+      <table class="t small">
+        {% for ln in cart.lines %}<tr><td>{{ ln.name }}<div class="muted">{{ ln.quantity|qty }} {{ ln.unit }} × {{ ln.price_final|money }}</div></td><td class="num">{{ ln.amount|money }}</td></tr>{% endfor %}
+        <tr><td><b>Итого{% if cart.discount_percent %} (скидка {{ '%g'|format(cart.discount_percent) }}%){% endif %}</b><div class="small muted">{% if cart.vat_amount %}в т.ч. НДС {{ cart.vat_amount|money }} ₽{% else %}без НДС{% endif %}</div></td><td class="num"><b>{{ cart.total|money }} ₽</b></td></tr>
+      </table>
+    </div>
+    {% endif %}
+    <div class="card">
+      <h2>Документы</h2>
+      {% if docs %}
+        {% for d in docs %}<div style="margin-bottom:8px"><a href="{{ d.url }}" target="_blank">{{ d.title }} № {{ d.number }}</a> <span class="muted small">— {{ d.totals.total|money }} ₽ · {{ d.created_at|dt }}</span> <span class="tag {{ d.status }}">{{ STATUS_LABELS.get(d.status, d.status) }}</span>
+          {% if d.status == 'draft' %}<form method="post" action="/admin/documents/{{ d.id }}/approve" style="display:inline"><input type="hidden" name="next" value="/admin/dialogs/{{ dialog.id }}"><button class="btn small">Утвердить</button></form>{% endif %}</div>{% endfor %}
+      {% else %}<div class="muted small">КП и счетов пока нет</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var box = document.getElementById("msgs");
+  box.scrollTop = box.scrollHeight;
+  var reply = document.getElementById("reply");
+  reply.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) document.getElementById("reply-form").submit();
+  });
+  var labels = { client: "Клиент", bot: "Ассистент", operator: "Менеджер" };
+  function lastId() {
+    var items = box.querySelectorAll(".msg");
+    return items.length ? +items[items.length - 1].dataset.id : 0;
+  }
+  setInterval(function () {
+    fetch("/admin/api/dialogs/{{ dialog.id }}/messages?after=" + lastId()).then(function (r) { return r.json(); }).then(function (d) {
+      d.messages.forEach(function (m) {
+        var el = document.createElement("div");
+        el.className = "msg " + m.role;
+        el.dataset.id = m.id;
+        var meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = (labels[m.role] || m.role) + " · сейчас";
+        el.appendChild(meta);
+        var body = document.createElement("div");
+        body.className = "text";
+        body.textContent = m.text;
+        el.appendChild(body);
+        box.appendChild(el);
+        box.scrollTop = box.scrollHeight;
+      });
+    }).catch(function () {});
+  }, 4000);
+  document.getElementById("draft-btn").onclick = function () {
+    var info = document.getElementById("draft-info");
+    info.textContent = "Готовлю черновик…";
+    fetch("/admin/api/dialogs/{{ dialog.id }}/draft", { method: "POST" }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.text) {
+        reply.value = d.text;
+        info.textContent = d.mode === "llm" ? "Черновик от ИИ — проверьте перед отправкой" : "Ответ из базы знаний — проверьте перед отправкой";
+      } else {
+        info.textContent = "Подходящего ответа не найдено";
+      }
+    }).catch(function () { info.textContent = "Не удалось получить черновик"; });
+  };
+})();
+</script>
+{% endblock %}

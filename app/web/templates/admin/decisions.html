@@ -1,0 +1,76 @@
+{% extends "admin/base.html" %}
+{% block title %}Ждут решения{% endblock %}
+{% block content %}
+<div class="row" style="justify-content: space-between; margin-bottom: 6px;">
+  <h1 style="margin:0">Ждут решения</h1>
+  <span class="muted">Норматив ответа менеджера: <b>{{ (data.sla_seconds // 60) }} мин</b> · страница обновляется автоматически</span>
+</div>
+<p class="muted small">Здесь — то, что ассистент не может решить сам: скидка больше {{ '%g'|format(max_discount) }}%, особые условия, вопросы без ответа, а также черновики КП и счетов на проверке. Решение сразу уходит клиенту в чат, и ассистент продолжает диалог.</p>
+
+<h2 style="margin-top:18px">Запросы клиентов <span class="pill">{{ data.requests|length }}</span></h2>
+{% for r in data.requests %}
+<div class="card decision {{ 'overdue' if r.overdue }}">
+  <div class="row" style="justify-content: space-between;">
+    <div>
+      <b>{{ REASONS.get(r.escalation_reason, 'Запрос') }}</b> ·
+      <a href="/admin/dialogs/{{ r.id }}">{{ r.customer_company or r.customer_name or ('Диалог #' ~ r.id) }}</a>
+      <span class="muted small">· {{ CHANNELS.get(r.channel, r.channel) }}{% if r.customer_phone %} · {{ r.customer_phone }}{% endif %}</span>
+    </div>
+    <div class="timer" data-waited="{{ r.waited }}" data-sla="{{ data.sla_seconds }}">—</div>
+  </div>
+  <div class="summary" style="margin:10px 0">{{ r.escalation_summary }}</div>
+  {% if r.calc and r.calc.lines %}
+    <div class="small">В расчёте: {% for ln in r.calc.lines %}{{ ln.name }} × {{ ln.quantity }}{% if not loop.last %}; {% endif %}{% endfor %} — <b>{{ r.calc.total|money }} ₽</b>{% if r.calc.discount_percent %} (сейчас скидка {{ '%g'|format(r.calc.discount_percent) }}%){% endif %}</div>
+  {% endif %}
+  <div class="row" style="margin-top:12px">
+    <form method="post" action="/admin/decisions/{{ r.id }}/approve-discount" class="row">
+      <input type="number" step="0.5" min="0.5" max="50" name="percent" value="{{ '%g'|format(r.requested_discount or max_discount) }}" style="width:80px">
+      <button class="btn primary">Согласовать скидку, %</button>
+    </form>
+    <form method="post" action="/admin/decisions/{{ r.id }}/decline" class="row grow">
+      <input type="text" name="text" placeholder="Ответ клиенту при отказе (необязательно — есть шаблон)" class="grow" style="min-width:260px">
+      <button class="btn">Отказать</button>
+    </form>
+    <a class="btn" href="/admin/dialogs/{{ r.id }}">Ответить в диалоге →</a>
+  </div>
+</div>
+{% else %}
+<div class="card empty">Нет запросов, ожидающих решения</div>
+{% endfor %}
+
+<h2 style="margin-top:24px">КП и счета на проверке <span class="pill blue">{{ data.drafts|length }}</span></h2>
+{% if data.drafts %}
+<div class="card" style="padding:0">
+  <table class="t">
+    <tr><th>Документ</th><th>Покупатель</th><th class="num">Сумма, ₽</th><th>Ждёт</th><th></th></tr>
+    {% for d in data.drafts %}
+    <tr class="{{ 'overdue-row' if d.overdue }}">
+      <td><a href="{{ d.url }}" target="_blank"><b>{{ d.title }} № {{ d.number }}</b></a>{% if d.dialog_id %}<div class="small"><a href="/admin/dialogs/{{ d.dialog_id }}">диалог</a></div>{% endif %}</td>
+      <td>{{ d.buyer.company or d.buyer.name or '—' }}</td>
+      <td class="num">{{ d.totals.total|money }}{% if d.totals.discount_percent %}<div class="small muted">скидка {{ '%g'|format(d.totals.discount_percent) }}%</div>{% endif %}</td>
+      <td><span class="timer" data-waited="{{ d.waited }}" data-sla="{{ data.sla_seconds }}">—</span></td>
+      <td class="num"><form method="post" action="/admin/documents/{{ d.id }}/approve"><button class="btn primary small">Утвердить и отправить</button></form></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% else %}<div class="card empty">Черновиков нет</div>{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var started = Date.now();
+  function tick() {
+    document.querySelectorAll(".timer").forEach(function (el) {
+      var s = +el.dataset.waited + Math.floor((Date.now() - started) / 1000), sla = +el.dataset.sla;
+      var m = Math.floor(s / 60), r = s % 60;
+      el.textContent = (s > sla ? "просрочено · " : "ждёт ") + m + ":" + (r < 10 ? "0" : "") + r;
+      el.classList.toggle("late", s > sla);
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+  setTimeout(function () { if (!document.activeElement || document.activeElement.tagName !== "INPUT") location.reload(); }, 15000);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>Вход — панель менеджера</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@400;500;600&display=swap"><link rel="stylesheet" href="/static/admin.css?v={{ asset_v() }}"></head>
+<body>
+<div class="login card">
+  <h1>Панель менеджера</h1>
+  {% if error %}<div class="flash" style="background:var(--red)">Неверный пароль</div>{% endif %}
+  <form method="post" action="/admin/login">
+    <label>Пароль</label>
+    <input type="password" name="password" autofocus required>
+    <div style="margin-top:14px"><button class="btn lime" type="submit">Войти</button></div>
+  </form>
+</div>
+</body>
+</html>

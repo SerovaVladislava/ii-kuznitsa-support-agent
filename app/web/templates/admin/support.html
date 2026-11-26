@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block title %}Переписки поддержки{% endblock %}
+{% block content %}
+<h1>Обращения в поддержку <span class="muted small">{{ total }} шт.</span></h1>
+{% if categories %}
+<div class="card">
+  <h2>Что спрашивают клиенты <span class="muted small">— по разметке выгрузки чатов</span></h2>
+  {% set top = categories[0].n %}
+  <table class="t">
+    {% for c in categories %}<tr><td style="width:40%">{{ c.category }}</td>
+      <td><div style="background:var(--lime);height:12px;border-radius:100px;width:{{ (c.n / top * 100)|round }}%"></div></td>
+      <td class="num">{{ c.n }} · {{ (c.n / total * 100)|round|int }}%</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
+<div class="toolbar">
+  <form method="get"><input type="text" name="q" value="{{ q }}" placeholder="Найти похожие вопросы" style="width:320px"><button class="btn">Найти</button></form>
+  <form method="post" action="/admin/support/import" enctype="multipart/form-data" style="margin-left:auto">
+    <input type="file" name="file" accept=".json,.csv,.xlsx,.txt" required><button class="btn">Загрузить переписки</button>
+  </form>
+</div>
+<p class="small muted">Ассистент смотрит на эти обращения как на примеры того, как клиенты формулируют вопросы; цены и условия он всё равно берёт только из каталога и базы знаний. Эти же чаты — обучающая выборка классификатора. Форматы: выгрузка чатов магазина («#номер [категория] [страница] текст»), JSON (диалоги role/text), CSV/XLSX (диалог, автор, текст), TXT («Клиент: …» / «Оператор: …»). Почта, телефоны и ИНН дополнительно маскируются. Оценка агента на этих обращениях — <code>scripts/evaluate_chats.py</code>.</p>
+<div class="card" style="padding:0">
+  <table class="t">
+    <tr><th style="width:55%">Клиент</th><th>Категория / ответ поддержки</th><th></th></tr>
+    {% for e in items %}
+    <tr>
+      <td>{{ e.question }}<div class="small muted">{% if e.external_id %}#{{ e.external_id }} · {% endif %}{{ e.page_url or e.source }}{% if e.score is defined %} · {{ e.score }}{% endif %}</div></td>
+      <td class="small">{% if e.category %}<span class="tag">{{ e.category }}</span>{% endif %} {{ e.answer }}</td>
+      <td class="num">{% if e.answer %}<form method="post" action="/admin/support/{{ e.id }}/to-kb"><button class="btn small">→ в базу знаний</button></form>{% else %}<a class="btn small" href="/admin/kb/new?question={{ e.question[:300]|urlencode }}">Написать ответ в базу</a>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="3" class="empty">Примеров нет — загрузите переписки</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+<h1>Настройки</h1>
+{% set labels = {
+  'name': 'Полное наименование', 'short_name': 'Краткое название', 'inn': 'ИНН', 'kpp': 'КПП', 'ogrn': 'ОГРН',
+  'address': 'Юридический адрес', 'phone': 'Телефон', 'email': 'Email', 'website': 'Сайт', 'bank_name': 'Банк',
+  'bik': 'БИК', 'account': 'Расчётный счёт', 'corr_account': 'Корр. счёт', 'director': 'Руководитель', 'accountant': 'Бухгалтер',
+  'vat_rate': 'Ставка НДС, %', 'prices_include_vat': 'Цены в каталоге включают НДС',
+  'volume_discounts': 'Скидки за объём (JSON: порог суммы → %)', 'max_auto_discount_percent': 'Максимальная автоматическая скидка, %',
+  'quote_valid_days': 'Срок действия КП, дней', 'invoice_valid_days': 'Срок оплаты счёта, дней',
+  'bot_name': 'Имя ассистента', 'greeting': 'Приветствие', 'working_hours': 'Режим работы менеджеров',
+  'operator_sla_minutes': 'SLA ответа менеджера, мин', 'handoff_message': 'Сообщение при передаче менеджеру ({sla}, {hours})',
+  'privacy_notice': 'Уведомление о персональных данных', 'kb_min_score': 'Порог уверенности базы знаний (0–1, офлайн-режим)',
+  'large_deal_notify_from': 'Уведомлять менеджера о КП/счёте от суммы, ₽',
+  'minutes_per_dialog': 'Норматив: минут сотрудника на диалог', 'minutes_per_document': 'Норматив: минут на КП/счёт',
+  'store_phone': 'Телефоны магазина', 'store_email': 'E-mail отдела продаж', 'signer_name': 'Подписант КП (ФИО)',
+  'signer_title': 'Должность подписанта', 'quote_salutation': 'Обращение в КП', 'quote_price_note': 'Примечание о цене в КП',
+  'max_agent_discount_percent': 'Скидка, которую ассистент даёт сам, %', 'payment_terms': 'Условия оплаты',
+  'llm_input_usd_per_mtok': 'ИИ: цена входных токенов, $ за 1 млн', 'llm_output_usd_per_mtok': 'ИИ: цена выходных токенов, $ за 1 млн',
+  'llm_cache_read_usd_per_mtok': 'ИИ: чтение из кэша, $ за 1 млн', 'llm_cache_write_usd_per_mtok': 'ИИ: запись в кэш, $ за 1 млн',
+  'usd_rub': 'Курс USD, ₽ (укажите актуальный)', 'operator_hour_cost_rub': 'Стоимость часа сотрудника поддержки, ₽ (норматив)',
+  'dialogs_per_month_plan': 'Плановая нагрузка, обращений в месяц'
+} %}
+{% for key, values in sections.items() %}
+<div class="card" style="max-width: 900px">
+  <h2>{{ titles[key] }}</h2>
+  <form method="post" action="/admin/settings/{{ key }}">
+    {% for k, v in values.items() %}
+      {% if v is sameas true or v is sameas false %}
+        <label><input type="checkbox" name="{{ k }}" value="1" {% if v %}checked{% endif %}> {{ labels.get(k, k) }}</label>
+      {% elif v is mapping or (v is iterable and v is not string) %}
+        <label>{{ labels.get(k, k) }}</label><textarea name="{{ k }}" rows="4" style="font-family:monospace">{{ v|tojson }}</textarea>
+      {% elif v is string and v|length > 80 %}
+        <label>{{ labels.get(k, k) }}</label><textarea name="{{ k }}" rows="3">{{ v }}</textarea>
+      {% else %}
+        <label>{{ labels.get(k, k) }}</label><input type="text" name="{{ k }}" value="{{ v }}">
+      {% endif %}
+    {% endfor %}
+    <div style="margin-top:14px"><button class="btn primary">Сохранить</button></div>
+  </form>
+</div>
+{% endfor %}
+<div class="card" style="max-width: 900px">
+  <h2>Подключения (файл .env)</h2>
+  <table class="t">
+    <tr><td>ИИ-режим (языковая модель)</td><td>{% if env.llm_enabled %}✅ включён{% else %}— офлайн-режим: работают внутренние модели (ключ LLM_API_KEY не задан){% endif %}</td></tr>
+    <tr><td>Почта (IMAP/SMTP)</td><td>{{ '✅ ' ~ env.email_user if env.email_enabled else '— не настроена' }}</td></tr>
+    <tr><td>Telegram-бот для клиентов</td><td>{{ '✅ подключён' if env.telegram_bot_token else '— не настроен' }}</td></tr>
+    <tr><td>Уведомления менеджерам</td><td>{% if env.manager_telegram_chat_id %}Telegram ✅ {% endif %}{% if env.manager_email %}Email ✅ {{ env.manager_email }}{% endif %}{% if not env.manager_telegram_chat_id and not env.manager_email %}— только в панели{% endif %}</td></tr>
+    <tr><td>API интеграций (телефония и др.)</td><td>{{ '✅ POST /api/channels/inbound' if env.integration_token else '— задайте INTEGRATION_TOKEN' }}</td></tr>
+  </table>
+  <h2 style="margin-top:18px">Код виджета для сайта</h2>
+  <pre style="background:#f4f6f9;padding:12px;border-radius:8px;overflow:auto">&lt;script src="{{ env.public_base_url }}/widget.js" defer&gt;&lt;/script&gt;</pre>
+</div>
+{% endblock %}

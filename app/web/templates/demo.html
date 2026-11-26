@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Демо-витрина магазина ПО — агент поддержки (прототип)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #ededed; --card: #fff; --ink: #232427; --dark: #1c1d20; --lime: #a6ed00; --muted: #6e7178;
+    --shadow: 0 0 0 1px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -8px rgba(0,0,0,.10);
+    --display: "Unbounded", "Manrope", -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Manrope", -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 17px; color: var(--ink);
+         background: var(--bg); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+
+  header .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 18px; padding-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 14px; font-weight: 600; font-size: 17px; }
+  .brand .mark { width: 34px; height: 34px; border-radius: 10px; background: var(--dark); display: grid; place-items: center; }
+  .brand .mark i { width: 12px; height: 12px; border-radius: 50%; background: var(--lime); display: block; }
+  .brand .sep { width: 1px; height: 22px; background: rgba(0,0,0,.2); }
+  .pill { display: inline-flex; align-items: center; gap: 10px; border: 0; border-radius: 100px; font: inherit; font-weight: 600;
+          cursor: pointer; text-decoration: none; transition: transform .1s, background .15s; }
+  .pill:active { transform: translateY(1px); }
+  .pill.dark { background: var(--dark); color: #fff; padding: 13px 22px; font-size: 15px; }
+  .pill.dark:hover { background: #000; }
+  .pill.lime { background: var(--lime); color: var(--dark); padding: 18px 30px; font-size: 16px; }
+  .pill.lime:hover { background: #b6f71a; }
+  .pill.white { background: #fff; color: var(--ink); padding: 18px 28px; font-size: 16px; box-shadow: var(--shadow); }
+  .round { width: 48px; height: 48px; border-radius: 50%; background: #fff; border: 0; display: grid; place-items: center; box-shadow: var(--shadow); }
+  .round span, .round span::before, .round span::after { display: block; width: 18px; height: 2px; background: var(--dark); border-radius: 2px; position: relative; }
+  .round span::before, .round span::after { content: ""; position: absolute; left: 0; }
+  .round span::before { top: -6px; } .round span::after { top: 6px; }
+  .head-actions { display: flex; gap: 10px; align-items: center; }
+
+  nav.sub { position: sticky; top: 0; z-index: 5; background: rgba(237,237,237,.86); backdrop-filter: blur(12px); }
+  nav.sub .wrap { display: flex; gap: 6px; align-items: center; padding-top: 10px; padding-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+  nav.sub .wrap::-webkit-scrollbar { display: none; }
+  nav.sub a { padding: 10px 18px; border-radius: 100px; text-decoration: none; font-size: 16px; white-space: nowrap; color: var(--ink); }
+  nav.sub a:hover { background: rgba(0,0,0,.05); }
+  nav.sub a.on { background: var(--dark); color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 10px; padding-left: 8px; }
+  nav.sub a.on i { width: 28px; height: 28px; border-radius: 50%; background: var(--lime); display: grid; place-items: center; }
+  nav.sub a.on i::after { content: ""; width: 8px; height: 12px; border: 2px solid var(--dark); border-radius: 3px; }
+
+  .hero { padding-top: 40px; padding-bottom: 28px; display: grid; grid-template-columns: 1.15fr .85fr; gap: 32px; align-items: center; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(34px, 5vw, 60px); line-height: 1.08; letter-spacing: -.02em; margin: 0 0 22px; }
+  .lead { font-size: 20px; line-height: 1.45; color: #3b3d42; max-width: 560px; margin: 0 0 32px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .mock { background: #d5d5d5; border-radius: 40px; padding: 10px; box-shadow: 0 30px 60px -24px rgba(28,29,32,.35); }
+  .mock .screen { background: #fff; border-radius: 32px; padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 330px; }
+  .mock .top { display: flex; align-items: center; gap: 10px; padding: 4px 6px 10px; border-bottom: 1px solid rgba(0,0,0,.06); }
+  .mock .top b { font-family: var(--display); font-weight: 500; font-size: 14px; }
+  .mock .top i { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); }
+  .b { max-width: 84%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.45; }
+  .b.c { align-self: flex-end; background: var(--dark); color: #fff; border-bottom-right-radius: 6px; }
+  .b.a { align-self: flex-start; background: #f2f2f2; border-bottom-left-radius: 6px; }
+  .b.m { align-self: flex-start; background: var(--lime); border-bottom-left-radius: 6px; }
+  .b small { display: block; font-weight: 700; opacity: .65; margin-bottom: 2px; font-size: 11.5px; }
+
+  html { scroll-behavior: smooth; }
+  section, main { scroll-margin-top: 72px; }
+  section { padding: 34px 0; }
+  h2 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 3.2vw, 38px); letter-spacing: -.02em; line-height: 1.12; margin: 0 0 22px; }
+  .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .feature { border-radius: 32px; padding: 30px; }
+  .feature h3 { font-family: var(--display); font-weight: 400; font-size: 24px; letter-spacing: -.01em; margin: 0 0 14px; }
+  .feature p { margin: 0 0 16px; line-height: 1.5; }
+  .feature ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .feature li { display: flex; gap: 12px; align-items: baseline; line-height: 1.45; }
+  .feature li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--lime); flex: 0 0 auto; transform: translateY(-1px); }
+  .feature.dark { background: var(--dark); color: #fff; }
+  .feature.dark p { color: #c9cbd1; }
+  .feature.lime { background: var(--lime); color: var(--dark); }
+  .feature.lime li::before { background: var(--dark); }
+  .feature.white { background: var(--card); box-shadow: var(--shadow); }
+  .feature.white li::before { background: var(--dark); }
+  .more { display: inline-flex; gap: 10px; align-items: center; font-weight: 600; text-decoration: none; margin-top: 18px; }
+  .more::after { content: "⟶"; }
+
+  .scen { background: var(--card); border-radius: 32px; padding: 28px; box-shadow: var(--shadow); }
+  .scen .row { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid rgba(0,0,0,.06); align-items: start; }
+  .scen .row:last-child { border-bottom: 0; }
+  .scen .row b { font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip { border: 0; background: #f2f2f2; border-radius: 100px; padding: 9px 15px; font: inherit; font-size: 14.5px; cursor: pointer; text-align: left; }
+  .chip:hover { background: var(--dark); color: #fff; }
+  .arrow { color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border-radius: 28px; padding: 22px; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+  .card .v { color: var(--muted); font-size: 14px; margin-bottom: 10px; line-height: 1.4; }
+  .card h3 { font-size: 18px; margin: 0 0 8px; line-height: 1.3; font-weight: 700; }
+  .card .ru { align-self: flex-start; font-size: 12.5px; font-weight: 600; background: var(--lime); color: var(--dark); border-radius: 100px; padding: 4px 11px; margin-bottom: 12px; }
+  .card .p { font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: -.01em; margin: auto 0 18px; padding-top: 10px; }
+  .card .pill { justify-content: center; padding: 13px 18px; font-size: 15px; }
+
+  @media (max-width: 860px) {
+    .hero, .features { grid-template-columns: 1fr; }
+    .scen .row { grid-template-columns: 1fr; }
+    .head-actions .pill.dark { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="mark"><i></i></span><span class="sep"></span><span>Магазин ПО</span></div>
+    <div class="head-actions">
+      <button class="pill dark" onclick="ask('')">Спросить консультанта</button>
+      <a class="pill white" href="/admin" style="padding:13px 20px;font-size:15px">Панель менеджера</a>
+    </div>
+  </div>
+</header>
+
+<nav class="sub">
+  <div class="wrap">
+    <a class="on" href="#top"><i></i>Онлайн-консультант</a>
+    <a href="#features">Возможности</a>
+    <a href="#scenarios">Вопросы</a>
+    <a href="#catalog">Каталог</a>
+    <a href="/admin/decisions" target="_blank">Для менеджера</a>
+  </div>
+</nav>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <h1>Подберём софт под&nbsp;задачу за&nbsp;минуту</h1>
+      <p class="lead">Консультант в чате сверяет редакции и варианты лицензий, отвечает на вопросы о продуктах и сразу готовит коммерческое предложение — а сложное передаёт менеджеру.</p>
+      <div class="cta">
+        <button class="pill lime" onclick="ask('')">Спросить консультанта</button>
+        <a class="pill white" href="/admin" target="_blank">Панель менеджера</a>
+      </div>
+    </div>
+    <div class="mock" aria-hidden="true">
+      <div class="screen">
+        <div class="top"><i></i><b>Консультант</b></div>
+        <div class="b c">Продлить Касперский на 40 компьютеров на год</div>
+        <div class="b a">Для какой организации лицензия: коммерческая или образовательная? Цены отличаются.</div>
+        <div class="b c">Коммерческая. А скидку дадите?</div>
+        <div class="b a">Подходит продление на 40 узлов, без НДС. Могу сразу дать скидку 5% — больше согласует менеджер.</div>
+        <div class="b m"><small>Менеджер</small>Согласовал 10%, обновлённое КП в чате.</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>Консультант на каждом шаге покупки</h2>
+      <div class="features">
+        <div class="feature dark">
+          <h3>Клиент знает продукт</h3>
+          <p>«Нужен MDaemon Standard», «продлить Касперский на 40 ПК»</p>
+          <ul>
+            <li>Сверяет версии по товарному фиду: редакция, срок, число пользователей, новая лицензия или продление</li>
+            <li>Спрашивает только то, чего не хватает</li>
+            <li>Называет точный артикул, цену, НДС и срок поставки</li>
+          </ul>
+        </div>
+        <div class="feature lime">
+          <h3>Клиент не знает решения</h3>
+          <p>«Хотим защитить почту и файлы на 50 сотрудников»</p>
+          <ul>
+            <li>Не больше трёх уточняющих вопросов: задача, масштаб, требования</li>
+            <li>Два варианта с обоснованием и ориентировочной суммой</li>
+            <li>Российские аналоги из реестра — по запросу</li>
+          </ul>
+        </div>
+        <div class="feature white">
+          <h3>КП по шаблону компании</h3>
+          <ul>
+            <li>Черновик формируется в чате и уходит менеджеру на проверку</li>
+            <li>Скидку до 5% агент даёт сам, больше — через менеджера</li>
+            <li>Только предоплата: отсрочку агент не обещает</li>
+          </ul>
+        </div>
+        <div class="feature white">
+          <h3>Менеджер за 2 минуты</h3>
+          <ul>
+            <li>Доска «Ждут решения» с таймером и сводкой запроса</li>
+            <li>Согласование скидки одной кнопкой — клиент сразу получает КП</li>
+            <li>Чат, почта, звонки — в одной ленте</li>
+          </ul>
+          <a class="more" href="/admin/decisions" target="_blank">Открыть панель</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="scenarios">
+    <div class="wrap">
+      <h2>Задайте вопросы консультанту</h2>
+      <div class="scen">
+        <div class="row"><b>Клиент знает продукт</b><div class="chips"><button class="chip">Нужен MDaemon Standard</button><span class="arrow">→</span><button class="chip">на 30 пользователей, новая лицензия, на год</button><span class="arrow">→</span><button class="chip">а есть российский аналог?</button></div></div>
+        <div class="row"><b>Клиент не знает решения</b><div class="chips"><button class="chip">Не знаю, что нужно, но хотим защитить почту и файлы на 50 сотрудников</button><span class="arrow">→</span><button class="chip">да, российское, сервер свой</button><span class="arrow">→</span><button class="chip">второй вариант</button><span class="arrow">→</span><button class="chip">сделайте КП</button></div></div>
+        <div class="row"><b>Продление и особые условия</b><div class="chips"><button class="chip">Продлить Касперский Стандартный на 40 компьютеров на год</button><span class="arrow">→</span><button class="chip">коммерческая</button><span class="arrow">→</span><button class="chip">можно с отсрочкой 30 дней?</button><span class="arrow">→</span><button class="chip">дайте скидку 10%</button></div></div>
+        <div class="row"><b>Вопросы</b><div class="chips"><button class="chip">Как я получу ключ?</button><button class="chip">Почему антивирус без НДС?</button><button class="chip">Можно вернуть лицензию?</button><button class="chip">позовите менеджера</button></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="catalog">
+    <div class="wrap">
+      <h2>Популярные продукты</h2>
+      <div class="grid">
+        {% for c in cards %}
+        <div class="card">
+          <div class="v">{{ c.vendor }} · {{ c.category.split(' / ')[-1] if c.category else '' }}</div>
+          <h3>{{ c.family }}</h3>
+          {% if c.russian_software %}<span class="ru">реестр российского ПО</span>{% endif %}
+          <div class="p">{{ c.price_from }}</div>
+          <button class="pill dark" onclick="ask({{ c.ask|tojson|forceescape }})">Спросить консультанта</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</main>
+
+<div style="height:48px"></div>
+
+<script>
+  function ask(text) {
+    if (!window.ConsultantWidget) return;
+    window.ConsultantWidget.open();
+    if (text) window.ConsultantWidget.prefill(text);
+  }
+  document.querySelectorAll(".chip").forEach(function (c) { c.onclick = function () { ask(c.textContent); }; });
+</script>
+<script src="/widget.js?v={{ asset_v() }}" data-title="Консультант магазина ПО" defer></script>
+</body>
+</html>

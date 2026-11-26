@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block title %}КП и счета{% endblock %}
+{% block content %}
+<h1>Коммерческие предложения и счета</h1>
+<p class="page-hint">Черновики КП и счетов готовит ассистент прямо в чате. Проверьте сумму и нажмите
+  <b>«Утвердить и отправить клиенту»</b> — документ уйдёт в чат. Когда клиент оплатит счёт, поставьте статус «Оплачен»: по нему считается конверсия.</p>
+<div class="card" style="padding:0">
+  {% if items %}
+  <table class="t">
+    <tr><th>Документ</th><th>Покупатель</th><th class="num">Сумма, ₽</th><th>Создан</th><th>Статус</th><th></th></tr>
+    {% for d in items %}
+    <tr>
+      <td><a href="{{ d.url }}" target="_blank"><b>{{ d.title }} № {{ d.number }}</b></a>
+        <div class="small"><a href="{{ d.url }}.docx">DOCX</a>{% if d.dialog_id %} · <a href="/admin/dialogs/{{ d.dialog_id }}">диалог</a>{% endif %}</div></td>
+      <td>{{ d.buyer.company or d.buyer.name or '—' }}<div class="small muted">{{ d.buyer.inn and ('ИНН ' ~ d.buyer.inn) or '' }} {{ d.buyer.phone or '' }} {{ d.buyer.email or '' }}</div></td>
+      <td class="num">{{ d.totals.total|money }}{% if d.totals.discount_percent %}<div class="small muted">скидка {{ '%g'|format(d.totals.discount_percent) }}%</div>{% endif %}</td>
+      <td class="muted">{{ d.created_at|dt }}</td>
+      <td><span class="tag {{ d.status }}">{{ STATUS_LABELS.get(d.status, d.status) }}</span></td>
+      <td class="num">
+        {% if d.status == 'draft' %}<form method="post" action="/admin/documents/{{ d.id }}/approve" style="margin-bottom:6px"><input type="hidden" name="next" value="/admin/documents"><button class="btn primary small">Утвердить и отправить клиенту</button></form>{% endif %}
+        <form method="post" action="/admin/documents/{{ d.id }}/status" class="row" style="justify-content:flex-end">
+          <select name="status" style="width:auto" aria-label="Статус документа">
+            {% for s, l in STATUS_LABELS.items() %}<option value="{{ s }}" {% if d.status == s %}selected{% endif %}>{{ l }}</option>{% endfor %}
+          </select>
+          <button class="btn small">Сменить статус</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Документов пока нет — они появятся, когда клиенты запросят КП или счёт в чате</div>{% endif %}
+</div>
+{% endblock %}

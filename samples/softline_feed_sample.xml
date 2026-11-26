@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Синтетический пример в формате фида store.softline.ru (структура как у выгрузки задачи, данные условные). -->
+<yml_catalog date="2026-11-25 14:12">
+	<shop>
+		<name>store.example</name>
+		<categories>
+			<category id="1">Антивирусы и безопасность</category>
+			<category id="2" parentId="1">Антивирусы для организаций</category>
+			<category id="3">Сеть и интернет</category>
+			<category id="4" parentId="3">Почтовые клиенты</category>
+		</categories>
+		<offers>
+			<offer id="9001" group_id="500" available="true">
+				<name>Демо Endpoint Защита для бизнеса Стандартный продление лицензии на 1 год. Количество узлов</name>
+				<vendor>Демо Лаб</vendor>
+				<vendorUrl>https://store.example.ru/demolab/</vendorUrl>
+				<vendorCode>DL-R-1Y-10</vendorCode>
+				<url>https://store.example.ru/demolab/dl-r-1y-10-9001/</url>
+				<price>1500.00</price>
+				<categoryId>2</categoryId>
+				<description>Платформа: Windows/Linux • Тип лицензии: продление • Минимальная покупка: от 10 шт.</description>
+				<param name="Тип лицензии">Продление</param>
+				<param name="Срок действия">12 мес.</param>
+				<param name="Тип организации">Коммерческая</param>
+				<param name="К-во узлов">10</param>
+				<param name="Номер записи в реестре отечественного ПО">12345</param>
+				<param name="Тип продукта">софт</param>
+				<param name="Тип поставки">электронная</param>
+			</offer>
+			<offer id="9002" group_id="500" available="true">
+				<name>Демо Endpoint Защита для бизнеса Стандартный продление лицензии на 1 год. Количество узлов</name>
+				<vendor>Демо Лаб</vendor>
+				<vendorCode>DL-R-1Y-25</vendorCode>
+				<price>1300.00</price>
+				<categoryId>2</categoryId>
+				<param name="Тип лицензии">Продление</param>
+				<param name="Срок действия">12 мес.</param>
+				<param name="Тип организации">Коммерческая</param>
+				<param name="К-во узлов">25</param>
+				<param name="Номер записи в реестре отечественного ПО">12345</param>
+				<param name="Тип продукта">софт</param>
+				<param name="Тип поставки">электронная</param>
+			</offer>
+			<offer id="9003" group_id="500" available="true">
+				<name>Демо Endpoint Защита для бизнеса Стандартный продление лицензии для академических учреждений на 1 год.</name>
+				<vendor>Демо Лаб</vendor>
+				<vendorCode>DL-RA-1Y-10</vendorCode>
+				<price>800.00</price>
+				<categoryId>2</categoryId>
+				<param name="Тип лицензии">Продление</param>
+				<param name="Срок действия">12 мес.</param>
+				<param name="Тип организации">Академическая</param>
+				<param name="К-во узлов">10</param>
+				<param name="Тип продукта">софт</param>
+				<param name="Тип поставки">электронная</param>
+			</offer>
+			<offer id="9101" group_id="600" available="true">
+				<name>Mailer Technologies, Ltd. Mailer Server (лицензия с подпиской на обновления на 1 год), 10 пользователей</name>
+				<vendor>Mailer Technologies, Ltd.</vendor>
+				<vendorCode />
+				<price>40000</price>
+				<categoryId>4</categoryId>
+				<param name="Тип лицензии">Полная версия</param>
+				<param name="Срок действия">12 мес.</param>
+				<param name="К-во пользователей до">10</param>
+				<param name="Тип продукта">софт</param>
+				<param name="Тип поставки">электронная</param>
+			</offer>
+			<offer id="9102" group_id="600" available="true">
+				<name>Mailer Technologies, Ltd. Mailer Server (лицензия с подпиской на обновления на 1 год), 50 пользователей</name>
+				<vendor>Mailer Technologies, Ltd.</vendor>
+				<vendorCode />
+				<price>90000</price>
+				<categoryId>4</categoryId>
+				<param name="Тип лицензии">Полная версия</param>
+				<param name="Срок действия">12 мес.</param>
+				<param name="К-во пользователей до">50</param>
+				<param name="Тип продукта">софт</param>
+				<param name="Тип поставки">электронная</param>
+			</offer>
+			<offer id="9103" group_id="600" available="false">
+				<name>Mailer Technologies, Ltd. Mailer Server (лицензия с подпиской на обновления на 1 год), 100 пользователей</name>
+				<vendor>Mailer Technologies, Ltd.</vendor>
+				<vendorCode />
+				<price>0.00</price>
+				<categoryId>4</categoryId>
+				<param name="Тип лицензии">Полная версия</param>
+				<param name="Срок действия">12 мес.</param>
+				<param name="К-во пользователей до">100</param>
+				<param name="Тип продукта">софт</param>
+				<param name="Тип поставки">электронная</param>
+			</offer>
+		</offers>
+	</shop>
+</yml_catalog>

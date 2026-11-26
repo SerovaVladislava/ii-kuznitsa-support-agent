@@ -1,0 +1,313 @@
+{% extends "admin/base.html" %}
+{% block title %}Классификатор{% endblock %}
+{% block content %}
+<h1 style="margin:0">Классификатор обращений</h1>
+<p class="muted" style="margin:6px 0 0;max-width:820px">Определяет у каждого обращения из чата, почты и звонков <b>тип</b>
+  (цена, счёт/КП, конфигурация и т. д.) и <b>IT-тему</b> (антивирус, ВКС, 1С…). Работа менеджера — подтверждать
+  спорные случаи на вкладке «Проверка»: так классификатор учится на ваших данных.</p>
+<nav class="toolbar filters tabs" aria-label="Разделы классификатора">
+  <a href="?tab=check" class="{{ 'on' if tab == 'check' }}">Проверка{% if nav_review %} <span class="pill">{{ nav_review }}</span>{% endif %}</a>
+  <a href="?tab=topics" class="{{ 'on' if tab == 'topics' }}">IT-темы: облако слов</a>
+  <a href="?tab=stats" class="{{ 'on' if tab == 'stats' }}">Статистика и проверка текста</a>
+  <a href="?tab=handbook" class="{{ 'on' if tab == 'handbook' }}">Справочник слов</a>
+  <a href="?tab=model" class="{{ 'on' if tab == 'model' }}">Модель и обучение</a>
+</nav>
+
+{% if tab == 'check' %}
+<div class="howto">
+  <div><span class="step">1</span><b>Новые обращения.</b> Если тип угадан, нажмите <b>«✓ Верно»</b>. Если нет, выберите правильный и нажмите <b>«Исправить»</b>. Каждое подтверждение становится примером для обучения.</div>
+  <div><span class="step">2</span><b>Спорная разметка.</b> Это старые чаты, где модель не согласна с исходной меткой. Решите, кто прав: так точнее считается качество классификатора.</div>
+</div>
+<div class="card" style="padding:0" id="queue">
+  <div style="padding:20px 22px 6px"><h2 style="margin:0">На проверку: уверенность ниже {{ (cfg.low_confidence * 100)|round|int }}%</h2>
+    <div class="small muted" style="margin-top:4px">«Верно» или «Исправить» — пример сразу попадает в обучение; нейросеть переобучится, когда наберётся 30 новых примеров.</div></div>
+  {% if queue %}
+  <table class="t">
+    <tr><th>Диалог</th><th>Обращение</th><th>Тип по классификатору</th><th>Подтвердить или исправить</th></tr>
+    {% for q in queue %}
+    <tr>
+      <td><a href="/admin/dialogs/{{ q.id }}"><b>#{{ q.id }}</b></a> <span class="muted small">{{ CHANNELS.get(q.channel, q.channel) }}<br>{{ q.created_at|dt }}</span></td>
+      <td style="max-width:420px" class="small">{{ (q.first_text or '')[:180] }}</td>
+      <td class="small" style="min-width:160px">{{ q.request_type }} <span class="tag conf lowc">{{ (q.request_type_conf * 100)|round|int }}%</span>
+        {% if q.it_topic %}<div class="muted" style="margin-top:4px">{{ q.it_topic }}</div>{% endif %}</td>
+      <td style="min-width:240px">
+        <form method="post" action="/admin/dialogs/{{ q.id }}/classify" style="margin-bottom:6px">
+          <input type="hidden" name="head" value="request_type"><input type="hidden" name="category" value="{{ q.request_type }}">
+          <input type="hidden" name="next" value="/admin/classifier?tab=check#queue">
+          <button class="btn small lime">✓ Верно</button>
+        </form>
+        <form method="post" action="/admin/dialogs/{{ q.id }}/classify" class="clf-form" style="margin-top:0">
+          <input type="hidden" name="head" value="request_type"><input type="hidden" name="next" value="/admin/classifier?tab=check#queue">
+          <select name="category" aria-label="Другой тип">{% for c in categories['request_type'] %}<option value="{{ c }}" {{ 'selected' if c == q.request_type }}>{{ c }}</option>{% endfor %}</select>
+          <button class="btn small">Исправить</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">Все обращения классифицированы уверенно</div>{% endif %}
+</div>
+
+<div class="card" id="disputed" style="padding:0">
+  <div style="padding:20px 22px 6px">
+    <h2 style="margin:0">Спорная разметка обучающих чатов{% if disputes.total %} <span class="pill">{{ disputes.total }}</span>{% endif %}</h2>
+    <div class="small muted" style="margin-top:6px;max-width:900px">В этих чатах модель не видела пример при обучении, но уверенно (≥{{ (cfg.low_confidence * 100)|round|int }}%) поставила другую категорию, чем в разметке.
+      Часто ошибается сама разметка. Например, «оформите КП на артикул» размечено как «Конфигурация».
+      Подтвердите или исправьте категорию. Проверенные метки становятся эталоном для оценки точности;
+      в обучение они попадут, если включить «Учить на проверенной разметке» (см. «Алгоритм»).
+      {% if disputes.reviewed %}Проверено: {{ disputes.reviewed }}, исправлено: {{ disputes.changed }}.{% endif %}</div>
+  </div>
+  {% if disputes['items'] %}
+  <table class="t">
+    <tr><th>Обращение клиента</th><th>В разметке</th><th>Модель предлагает</th><th></th></tr>
+    {% for d in disputes['items'] %}
+    <tr>
+      <td style="max-width:460px" class="small">{{ d.text[:260] }}{% if d.text|length > 260 %}…{% endif %}</td>
+      <td class="small" style="min-width:150px">{{ d.original }}</td>
+      <td class="small" style="min-width:150px"><b>{{ d.suggestion }}</b> <span class="tag conf">{{ (d.confidence * 100)|round|int }}%</span>
+        <div class="muted">{{ 'по ключевым словам' if d.source == 'keyword' else 'модель' }}</div></td>
+      <td style="min-width:230px">
+        <div class="row" style="gap:6px;flex-wrap:wrap">
+          <form method="post" action="/admin/classifier/review"><input type="hidden" name="example_id" value="{{ d.id }}"><input type="hidden" name="category" value="{{ d.suggestion }}"><button class="btn small lime">Согласен с моделью</button></form>
+          <form method="post" action="/admin/classifier/review"><input type="hidden" name="example_id" value="{{ d.id }}"><input type="hidden" name="category" value="{{ d.original }}"><button class="btn small">Разметка верна</button></form>
+        </div>
+        <form method="post" action="/admin/classifier/review" class="clf-form">
+          <input type="hidden" name="example_id" value="{{ d.id }}">
+          <select name="category" aria-label="Другая категория">{% for c in categories['request_type'] %}<option value="{{ c }}" {{ 'selected' if c == d.original }}>{{ c }}</option>{% endfor %}</select>
+          <button class="btn small">Другая</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% if disputes.total > disputes['items']|length %}<div class="small muted" style="padding:10px 22px 16px">Показаны первые {{ disputes['items']|length }} из {{ disputes.total }} — после проверки появятся следующие.</div>{% endif %}
+  {% else %}<div class="empty">Спорной разметки нет{% if disputes.reviewed %} — все спорные примеры проверены{% endif %}</div>{% endif %}
+</div>
+{% elif tab == 'topics' %}
+<div class="card" id="cloud">
+  <div class="row" style="justify-content: space-between; align-items: baseline">
+    <h2 style="margin:0">Облако слов без IT-темы</h2>
+    <span class="small muted">без уверенной темы {{ cloud.unmatched }} из {{ cloud.total }} обращений</span>
+  </div>
+  <p class="small muted" style="max-width:900px">Частые слова из обращений, для которых справочник не нашёл IT-тему.
+    Перетащите слово на тему или нажмите слово, а затем тему: оно станет ключевым словом темы и сразу начнёт работать, переобучение не нужно.
+    Если подходящей темы нет, создайте новую. Если слово не про технику, нажмите «Скрыть». Наведите курсор на слово, чтобы увидеть примеры обращений.
+    Облако только для IT-тем: тип обращения по словам размечается хуже модели, он подтверждается в очереди «На проверку».</p>
+  {% if cloud.words %}
+  <div class="cloud" id="cloud-words">
+    {% for w in cloud.words %}<span class="cw" draggable="true" tabindex="0" data-word="{{ w.word }}" style="font-size: {{ w.size }}px" title="{{ w.count }} обращ. · {{ w.examples|join(' · ') }}">{{ w.word }}<sup>{{ w.count }}</sup></span>
+    {% endfor %}
+  </div>
+  <div class="cloud-panel">
+    <div class="row" style="gap:10px">
+      <span class="small">Выбрано: <b id="cw-selected">—</b></span>
+      <button type="button" class="btn small" id="cw-hide" disabled>Скрыть слово</button>
+    </div>
+    <div class="topics" id="cloud-topics">
+      {% for t in topics %}<button type="button" class="topic-drop" data-topic="{{ t }}">{{ t }}</button>{% endfor %}
+    </div>
+    <div class="row" style="gap:8px">
+      <input type="text" id="cw-new" placeholder="Новая тема, например «Операционные системы»" style="flex:1;min-width:240px">
+      <button type="button" class="btn small primary" id="cw-new-btn" disabled>Создать тему со словом</button>
+    </div>
+  </div>
+  <form method="post" action="/admin/classifier/cloud/assign" id="cw-form" hidden><input name="word"><input name="category"></form>
+  <form method="post" action="/admin/classifier/cloud/ignore" id="cw-ignore" hidden><input name="word"></form>
+  {% else %}<div class="empty">Нераспознанных слов нет: у всех обращений есть IT-тема или слова скрыты</div>{% endif %}
+</div>
+<p class="small muted">Все ключевые слова тем — на вкладке <a href="?tab=handbook">«Справочник слов»</a>.</p>
+{% elif tab == 'stats' %}
+<div class="grid2" style="gap:18px">
+  {% for head, title in heads.items() %}
+  <div class="card" style="margin:0 0 18px">
+    <h2>{{ title }}: обращения за 30 дней</h2>
+    {% set rows = dist[head] %}
+    {% if rows %}{% set top = rows[0].n %}
+      {% for r in rows %}<div class="hbar wide"><span class="lbl" title="{{ r.category }}">{{ r.category }}</span><span class="track"><i class="lime" style="width: {{ (r.n * 100 / top)|round|int }}%"></i></span><b>{{ r.n }}{% if r.low %} <span class="muted small">/ {{ r.low }} ?</span>{% endif %}</b></div>{% endfor %}
+      <div class="small muted" style="margin-top:8px">«?» — из них с низкой уверенностью</div>
+    {% else %}<div class="empty">Пока нет классифицированных обращений</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card" style="margin-top:18px">
+  <h2>Проверить текст</h2>
+  <form method="get" action="/admin/classifier"><input type="hidden" name="tab" value="stats">
+    <textarea name="text" rows="3" placeholder="Например: Добрый день! Можно ли у вас купить Kaspersky для 30 компьютеров как бюджетная организация по 44-ФЗ?">{{ text }}</textarea>
+    <div style="margin-top:10px"><button class="btn primary">Классифицировать</button></div>
+  </form>
+  {% if result %}
+  <div class="result-box">
+    {% for head, title in heads.items() %}{% set r = result.get(head) %}
+    <div style="margin-bottom:12px">
+      <div class="small muted">{{ title }}</div>
+      {% if r %}
+        <div class="clf-cat">{{ r.category }} <span class="tag conf {{ 'lowc' if r.low_confidence }}">{{ (r.confidence * 100)|round|int }}%</span>
+          <span class="small muted">{{ 'ключевые слова: ' ~ r.matched|join(', ') if r.source == 'keyword' else 'модель' }}</span></div>
+        {% for t in r.top %}<div class="hbar"><span class="lbl">{{ t.category }}</span><span class="track"><i style="width: {{ (t.p * 100)|round|int }}%"></i></span><b>{{ (t.p * 100)|round|int }}%</b></div>{% endfor %}
+      {% else %}<div class="muted small">не определено</div>{% endif %}
+    </div>
+    {% endfor %}
+    {% if result.keywords %}<div class="small muted">Ключевые слова: {{ result.keywords|join(', ') }}</div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% elif tab == 'handbook' %}
+<div class="card" id="handbook">
+  <div class="row" style="justify-content: space-between">
+    <h2 style="margin:0">Справочник ключевых слов</h2>
+    <form method="post" action="/admin/classifier/handbook" onsubmit="return confirm('Восстановить исходный справочник IT-тем? Ваши правки IT-тем будут потеряны.')"><button class="btn small">Восстановить исходный справочник IT-тем</button></form>
+  </div>
+  <p class="small muted">Если в обращении есть ключевое слово категории, она важнее модели. Слова ищутся целиком с учётом окончаний («антивирус» найдёт «антивирусная», «ПО» не найдёт «почему»). Фраза может быть разорвана одним-двумя словами.</p>
+  <form method="post" action="/admin/classifier/keywords" class="row" style="margin-bottom:14px;flex-wrap:wrap">
+    <select name="head" style="width:auto">{% for head, title in heads.items() %}<option value="{{ head }}">{{ title }}</option>{% endfor %}</select>
+    <input type="text" name="category" list="clf-cats" placeholder="Категория" required style="flex:1;min-width:220px">
+    <datalist id="clf-cats">{% for head in heads %}{% for c in categories[head] %}<option value="{{ c }}">{% endfor %}{% endfor %}</datalist>
+    <input type="text" name="keyword" placeholder="Ключевое слово или фраза" required style="flex:1;min-width:200px">
+    <button class="btn primary">Добавить</button>
+  </form>
+  <div class="grid2" style="gap:0 24px">
+    {% for head, title in heads.items() %}
+    <div>
+      <div class="small muted" style="font-weight:700;margin-bottom:4px">{{ title }} · {{ handbook[head]|length }} категорий</div>
+      {% for cat, words in handbook[head].items() %}
+      <details class="kw-cat">
+        <summary><span>{{ cat }}</span><span class="muted small">{{ words|length }}</span></summary>
+        <div class="kw-list">
+          {% for w in words %}<span class="kw">{{ w.keyword }}<form method="post" action="/admin/classifier/keywords/{{ w.id }}/delete"><button title="Удалить">×</button></form></span>{% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="row" style="justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px">
+  <p class="muted small" style="margin:0;max-width:760px">Технические сведения для специалиста. Классификатор сочетает модель на словах и символах, справочник ключевых слов и нейросеть rubert-tiny2, дообученную на ваших переписках.
+    Обычно здесь ничего нажимать не нужно: модель переобучается сама.</p>
+  <form method="post" action="/admin/classifier/retrain"><button class="btn">Переобучить сейчас</button></form>
+</div>
+<div class="grid2" style="gap:18px;margin-top:14px">
+  {% for s in status %}
+  <div class="card" style="margin:0">
+    <h2 style="margin-bottom:4px">{{ s.title }}</h2>
+    {% set i = s.info %}
+    {% if i.error %}
+      <div class="small muted">{% if s.keywords %}Работает по справочнику: {{ s.keywords }} ключевых слов в {{ s.keyword_categories }} категориях.
+        Модель включится, когда наберётся хотя бы 10 размеченных примеров (исправления менеджеров или загрузка файла).{% else %}{{ i.error }}{% endif %}</div>
+    {% elif i.samples %}
+      <div class="small muted">{{ algorithms.get(i.algorithm, i.algorithm) }}</div>
+      <div class="metric-grid">
+        <div class="metric"><div class="l">Обучающих примеров</div><div class="v">{{ i.samples }}</div></div>
+        <div class="metric"><div class="l">Категорий</div><div class="v">{{ i.categories|length }}</div></div>
+        <div class="metric"><div class="l">Точность без нейросети, быстрая проверка на {{ i.test_size }} чатах</div><div class="v">{{ (i.accuracy * 100)|round|int }}%</div></div>
+        {% if i.confident_accuracy is not none %}<div class="metric"><div class="l">Уверенные ответы ({{ (i.confident_share * 100)|round|int }}% обращений) — верных</div><div class="v">{{ (i.confident_accuracy * 100)|round|int }}%</div></div>{% endif %}
+      </div>
+      <div class="small muted">Справочник: {{ s.keywords }} ключевых слов · исправлений менеджеров: {{ s.manager_samples }} · загружено из файлов: {{ s.imported_samples }}{% if s.reviewed_samples %} · проверено меток: {{ s.reviewed_samples }}{% endif %}{% if i.removed %} · не обучались (мало примеров): {{ i.removed|join(', ') }}{% endif %}</div>
+    {% else %}
+      <div class="small muted">Модель ещё не обучалась — нажмите «Переобучить».</div>
+    {% endif %}
+    {% if s.trained_at %}<div class="small muted" style="margin-top:6px">Обучена {{ s.trained_at|dt }}{% if i.test_size %}. Полная оценка с нейросетью
+      (кросс-валидация по всем чатам): <code>scripts\evaluate_classifier.py</code>, отчёт <code>reports\classifier_eval.md</code>{% endif %}</div>{% endif %}
+    {% if s.head == 'request_type' and cfg.algorithm == 'hybrid' %}
+    {% set n = s.neural %}
+    <div class="metric" style="margin-top:12px">
+      <div class="l">Нейросеть rubert-tiny2 (доля в ответе {{ (neural_weight * 100)|round|int }}%)</div>
+      {% if not n.installed %}
+        <div class="small" style="margin-top:4px">Не установлена — классификатор работает без неё. Установка: <code>pip install -r requirements-ml.txt</code> и <code>python scripts/download_model.py</code></div>
+      {% elif not n.available %}
+        <div class="small" style="margin-top:4px">Модель не скачана: <code>python scripts/download_model.py</code></div>
+      {% else %}
+        {% if n.training and n.training.running %}
+          <div class="small" style="margin-top:4px"><b>Идёт дообучение:</b> эпоха {{ n.training.epoch }} из {{ n.training.epochs }} (с {{ n.training.started|dt }}). {{ 'Пока работает прежняя версия.' if n.meta else 'Пока классификатор работает без нейросети.' }} Обновите страницу, чтобы увидеть прогресс.</div>
+        {% elif n.meta %}
+          <div class="small" style="margin-top:4px">Дообучена {{ n.meta.trained_at|dt }} на {{ n.meta.samples }} примерах за {{ (n.meta.seconds / 60)|round(1) }} мин. Переобучится сама, когда накопится 30 новых примеров.</div>
+        {% else %}
+          <div class="small" style="margin-top:4px">Ещё не дообучена на ваших данных.</div>
+        {% endif %}
+        {% if n.training and n.training.error %}<div class="small" style="color:var(--red);margin-top:4px">Ошибка: {{ n.training.error }}</div>{% endif %}
+        {% if not (n.training and n.training.running) %}
+        <form method="post" action="/admin/classifier/neural" style="margin-top:8px"><button class="btn small">Дообучить нейросеть сейчас</button></form>
+        {% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid2" style="gap:18px">
+  <div class="card" style="margin:0 0 18px">
+    <h2>Алгоритм</h2>
+    <form method="post" action="/admin/classifier/settings">
+      <label>Модель</label>
+      <select name="algorithm">{% for k, v in algorithms.items() %}<option value="{{ k }}" {{ 'selected' if cfg.algorithm == k }}>{{ v }}</option>{% endfor %}</select>
+      <label>Порог «низкой уверенности»</label>
+      <input type="number" name="low_confidence" step="0.05" min="0.1" max="0.99" value="{{ cfg.low_confidence }}">
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-weight:400">
+        <input type="checkbox" name="train_on_reviewed" value="1" {{ 'checked' if cfg.train_on_reviewed }} style="width:auto;margin-top:3px">
+        <span>Учить на проверенной разметке спорных чатов<br><span class="small muted">Включайте, когда все чаты размечены по единому правилу. Если исправлена только часть, модель получает противоречивые примеры и точность падает.</span></span>
+      </label>
+      <div class="small muted" style="margin-top:6px">Порог по умолчанию 0.8. Сравнение алгоритмов на переписках Softline: <code>python scripts/evaluate_classifier.py</code></div>
+      <div style="margin-top:10px"><button class="btn">Сохранить и переобучить</button></div>
+    </form>
+  </div>
+  <div class="card" style="margin:0 0 18px">
+    <h2>Загрузить размеченные обращения</h2>
+    <form method="post" action="/admin/classifier/upload" enctype="multipart/form-data">
+      <label>Классификатор</label>
+      <select name="head">{% for head, title in heads.items() %}<option value="{{ head }}">{{ title }}</option>{% endfor %}</select>
+      <div class="grid2">
+        <div><label>Колонка с текстом (с 0)</label><input type="number" name="text_col" value="0" min="0"></div>
+        <div><label>Колонка с категорией</label><input type="number" name="category_col" value="1" min="0"></div>
+      </div>
+      <label>Файл CSV или XLSX</label><input type="file" name="file" accept=".csv,.xlsx,.txt" required>
+      <div style="margin-top:10px"><button class="btn">Загрузить и переобучить</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var words = document.querySelectorAll(".cw"), selected = null;
+  var label = document.getElementById("cw-selected"), hide = document.getElementById("cw-hide");
+  var newInput = document.getElementById("cw-new"), newBtn = document.getElementById("cw-new-btn");
+  if (!words.length) return;
+  function select(el) {
+    words.forEach(function (w) { w.classList.toggle("sel", w === el); });
+    selected = el ? el.dataset.word : null;
+    label.textContent = selected || "—";
+    hide.disabled = !selected;
+    newBtn.disabled = !selected || !newInput.value.trim();
+  }
+  function assign(word, topic) {
+    var f = document.getElementById("cw-form");
+    f.word.value = word; f.category.value = topic; f.submit();
+  }
+  words.forEach(function (w) {
+    w.addEventListener("click", function () { select(w.classList.contains("sel") ? null : w); });
+    w.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); w.click(); } });
+    w.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/plain", w.dataset.word); select(w); });
+  });
+  document.querySelectorAll(".topic-drop").forEach(function (t) {
+    t.addEventListener("click", function () { if (selected) assign(selected, t.dataset.topic); });
+    t.addEventListener("dragover", function (e) { e.preventDefault(); t.classList.add("over"); });
+    t.addEventListener("dragleave", function () { t.classList.remove("over"); });
+    t.addEventListener("drop", function (e) {
+      e.preventDefault(); t.classList.remove("over");
+      var word = e.dataTransfer.getData("text/plain") || selected;
+      if (word) assign(word, t.dataset.topic);
+    });
+  });
+  newInput.addEventListener("input", function () { newBtn.disabled = !selected || !newInput.value.trim(); });
+  newBtn.addEventListener("click", function () { if (selected && newInput.value.trim()) assign(selected, newInput.value.trim()); });
+  hide.addEventListener("click", function () {
+    if (!selected) return;
+    var f = document.getElementById("cw-ignore"); f.word.value = selected; f.submit();
+  });
+})();
+</script>
+{% endblock %}

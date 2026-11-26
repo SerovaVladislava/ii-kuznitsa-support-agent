@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% block title %}Входящее обращение{% endblock %}
+{% block content %}
+{% set phone = form.channel == 'phone' %}
+<h1>Тест: письмо или звонок клиента</h1>
+<p class="page-hint">Проверка почтового и телефонного каналов без настоящей почты и телефонии. Вставьте текст письма или расшифровку звонка: ассистент ответит так же, как настоящему клиенту, а диалог появится в разделе «Диалоги».</p>
+<div class="toolbar filters">
+  <a href="/admin/email?channel=email" class="{{ 'on' if not phone }}">Письмо</a>
+  <a href="/admin/email?channel=phone" class="{{ 'on' if phone }}">Звонок (расшифровка)</a>
+</div>
+<p class="muted">
+  {% if phone %}Звонок клиента в виде расшифровки речи. В рабочем режиме телефония или сервис распознавания речи передаёт текст в <code>POST /api/channels/inbound</code> (channel = phone), а ответ ассистента озвучивается или уходит СМС — обработка та же, что здесь.
+  {% else %}При настроенной почте (IMAP/SMTP в .env) письма забираются автоматически. Здесь письмо можно вставить вручную — оно обработается так же: диалог в канале «Почта», ответ ассистента, при необходимости передача менеджеру.{% if not env_smtp %} SMTP не настроен, поэтому ответ показывается здесь и не отправляется.{% endif %}{% endif %}
+  Все каналы попадают в общую ленту «Диалоги» и на доску «Ждут решения».
+</p>
+<div class="chat">
+  <div class="card">
+    <form method="post" action="/admin/email">
+      <input type="hidden" name="channel" value="{{ 'phone' if phone else 'email' }}">
+      <div class="grid2">
+        <div><label>{{ 'Номер телефона' if phone else 'От (e-mail)' }}</label>
+          <input type="text" name="sender" value="{{ form.sender or ('+7 900 000-00-00' if phone else 'olga.demo@example.com') }}" required></div>
+        <div><label>Имя</label><input type="text" name="sender_name" value="{{ form.sender_name or ('Сергей' if phone else 'Ольга') }}"></div>
+      </div>
+      {% if not phone %}<label>Тема</label><input type="text" name="subject" value="{{ form.subject or 'Продление антивируса' }}">{% endif %}
+      <label>{{ 'Расшифровка речи клиента' if phone else 'Текст письма' }}</label>
+      <textarea name="body" rows="9" required>{{ form.body or ('Алло, здравствуйте. Нам нужен почтовый сервер, человек на тридцать, свой сервер на Windows есть. Что посоветуете?' if phone else 'Добрый день! У нас заканчивается лицензия Касперского на 40 компьютеров, нужно продлить на год. Редакция Стандартный. Можно ли оплатить с отсрочкой 30 дней после получения ключей? Ольга, ООО «Альфа»') }}</textarea>
+      <div style="margin-top:12px"><button class="btn primary">Обработать {{ 'звонок' if phone else 'письмо' }}</button></div>
+    </form>
+  </div>
+  <div>
+    {% if result %}
+    <div class="card">
+      <h2>Ответ ассистента {% if result.sent %}<span class="tag paid">отправлен</span>{% else %}<span class="tag">не отправлен (имитация)</span>{% endif %}</h2>
+      {% for r in result.replies %}<div class="msg bot" style="max-width:100%"><div class="text">{{ r }}</div></div>{% else %}<p class="muted">Диалог у менеджера — ассистент не отвечает.</p>{% endfor %}
+      <p style="margin-top:12px"><a class="btn" href="/admin/dialogs/{{ result.dialog_id }}">Открыть диалог →</a></p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

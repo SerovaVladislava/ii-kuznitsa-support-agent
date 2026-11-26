@@ -1,0 +1,61 @@
+{% extends "docs/base_doc.html" %}
+{% block body %}
+{% if doc.status == 'draft' %}<div class="draft">ЧЕРНОВИК — на проверке у менеджера</div>{% endif %}
+<table>
+  <tr>
+    <td style="vertical-align: top; width: 58%;">
+      <div class="brand">{{ company.short_name or company.name }}</div>
+      <div class="small" style="line-height: 1.5; margin-top: 8px;">
+        {{ company.address }}<br>
+        Т {{ company.phone }} | {{ company.email }}<br>
+        {{ company.website }}
+      </div>
+    </td>
+    <td style="text-align: right; vertical-align: top;">
+      <p>Куда: {{ buyer_name or '—' }}</p>
+      <p>Исх. № {{ doc.number }} от {{ created }}.</p>
+    </td>
+  </tr>
+</table>
+
+<p style="text-align: center; margin-top: 36px;">{{ company.quote_salutation or 'Уважаемый заказчик!' }}</p>
+<p style="text-align: center;">{{ company.name }} предлагает Вашему вниманию коммерческое предложение на следующих условиях:</p>
+
+<table class="grid">
+  <thead>
+    <tr><th style="width: 15%">Артикул</th><th>Наименование</th><th style="width: 7%">Кол-во</th><th style="width: 13%">Цена, руб.</th><th style="width: 13%">Сумма, руб.</th><th style="width: 13%">В т.ч. НДС, руб.</th></tr>
+  </thead>
+  <tbody>
+  {% for ln in doc['items'] %}
+    <tr>
+      <td class="small">{{ ln.sku }}</td>
+      <td>{{ ln.name }}</td>
+      <td class="num">{{ ln.quantity|qty }}</td>
+      <td class="num">{{ ln.price_final|money }}{% if ln.discount_percent %}<div class="muted small"><s>{{ ln.price|money }}</s></div>{% endif %}</td>
+      <td class="num">{{ ln.amount|money }}</td>
+      <td class="num">{% if ln.vat_rate %}{{ ln.vat_amount|money }}{% else %}Без НДС{% endif %}</td>
+    </tr>
+  {% endfor %}
+    <tr>
+      <td></td><td class="center"><b>Итого</b></td><td></td><td></td>
+      <td class="num"><b>{{ doc.totals.total|money }}</b></td>
+      <td class="num"><b>{% if doc.totals.vat_amount %}{{ doc.totals.vat_amount|money }}{% else %}Без НДС{% endif %}</b></td>
+    </tr>
+  </tbody>
+</table>
+
+<div style="margin: 14px 0 0 40px; line-height: 1.55;">
+  {{ company.quote_price_note or 'Цена указана с учетом всех налогов, сборов, и других обязательных платежей.' }}<br>
+  {% if doc.totals.discount_percent %}Цены указаны с учётом скидки {{ '%g'|format(doc.totals.discount_percent) }}%.<br>{% endif %}
+  Условия оплаты: {{ payment_terms }}.<br>
+  Срок поставки: {{ doc.totals.delivery_terms or 'по согласованию' }}.<br>
+  Срок действия коммерческого предложения - до {{ valid_until }}.<br>
+  <span class="small muted">{{ amount_words }}</span>
+  {% if doc.totals.price_on_request %}<br><span class="small">Позиции с ценой по запросу ({{ doc.totals.price_on_request|map(attribute='name')|join(', ') }}) менеджер добавит отдельно.</span>{% endif %}
+</div>
+
+<div style="margin: 60px 0 0 40px;">
+  {{ company.signer_name or '_______________________' }}<br>
+  {{ company.signer_title or 'Ответственный менеджер' }}
+</div>
+{% endblock %}

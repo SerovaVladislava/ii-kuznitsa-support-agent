@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% block title %}Кандидаты в базу знаний{% endblock %}
+{% block content %}
+<h1>Кандидаты в базу знаний</h1>
+<p class="muted">Когда менеджер отвечает на вопрос, с которым не справился ассистент, пара «вопрос — ответ» попадает сюда.
+  Отредактируйте формулировку и добавьте — в следующий раз ассистент ответит сам.</p>
+{% for c in items %}
+<div class="card">
+  <form method="post" action="/admin/kb/candidates/{{ c.id }}">
+    <label>Вопрос клиента {% if c.dialog_id %}<a class="small" href="/admin/dialogs/{{ c.dialog_id }}">(диалог #{{ c.dialog_id }})</a>{% endif %}</label>
+    <input type="text" name="question" value="{{ c.question }}">
+    <label>Ответ менеджера</label>
+    <textarea name="answer" rows="4">{{ c.answer }}</textarea>
+    <label>Ключевые слова</label>
+    <input type="text" name="tags" value="">
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" name="action" value="approve">Добавить в базу знаний</button>
+      <button class="btn" name="action" value="reject">Отклонить</button>
+    </div>
+  </form>
+</div>
+{% else %}
+<div class="card empty">Новых кандидатов нет</div>
+{% endfor %}
+{% endblock %}

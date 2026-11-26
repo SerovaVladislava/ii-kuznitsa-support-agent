@@ -1,0 +1,31 @@
+{% extends "admin/base.html" %}
+{% block title %}Каталог{% endblock %}
+{% block content %}
+<h1>Каталог (товарный фид) <span class="muted small">{{ total }} артикулов</span></h1>
+<div class="toolbar">
+  <form method="get"><input type="text" name="q" value="{{ q }}" placeholder="Название, вендор, задача или артикул" style="width:340px"><button class="btn">Найти</button></form>
+  <a class="btn primary" href="/admin/catalog/new">+ Товар</a>
+  <form method="post" action="/admin/catalog/import" enctype="multipart/form-data" style="margin-left:auto">
+    <input type="file" name="file" accept=".xml,.yml,.csv,.xlsx,.json" required><button class="btn">Загрузить фид</button>
+  </form>
+</div>
+<p class="small muted">Форматы фида: YML (Яндекс.Маркет), Google Merchant XML, CSV/XLSX, JSON. Товары обновляются по артикулу; можно загружать частичные выгрузки (артикул + цена). Редакция, срок, количество пользователей, новая лицензия/продление, развёртывание и признак российского ПО берутся из параметров оффера, а если их нет — распознаются из наименования. Поиск рассчитан на сотни тысяч позиций.</p>
+<div class="card" style="padding:0">
+  <table class="t">
+    <tr><th>Артикул</th><th>Наименование</th><th>Вендор</th><th>Тип</th><th>Срок</th><th>Польз./устр.</th><th class="num">Цена, ₽</th></tr>
+    {% for p in items %}
+    <tr>
+      <td class="small"><a href="/admin/catalog/{{ p.id }}">{{ p.sku }}</a></td>
+      <td>{{ p.name }}{% if not p.active %} <span class="tag">скрыт</span>{% endif %}{% if p.is_russian %} <span class="tag ru">реестр РФ</span>{% endif %}
+        <div class="small muted">{{ p.category }}</div></td>
+      <td class="small">{{ p.vendor }}</td>
+      <td class="small">{{ {'new': 'новая', 'renewal': 'продление', 'upgrade': 'переход'}.get(p.purchase_type, '') }}</td>
+      <td class="small">{% if p.term_months %}{{ p.term_months }} мес.{% elif p.license_type == 'perpetual' %}бессрочно{% endif %}</td>
+      <td class="small">{% if p.pricing == 'package' %}до {{ p.users_max }}{% elif p.users_min or p.users_max %}{{ p.users_min }}–{{ p.users_max }}{% endif %}</td>
+      <td class="num">{% if p.price > 0 %}{{ p.price|money }}<div class="small muted">{{ 'за пакет' if p.pricing == 'package' else 'за 1 ' ~ p.unit }}</div>{% else %}<span class="muted">по запросу</span>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="empty">Товаров нет</td></tr>{% endfor %}
+  </table>
+</div>
+{% if not q and total > items|length %}<p class="small muted">Показаны первые {{ items|length }} — воспользуйтесь поиском.</p>{% endif %}
+{% endblock %}

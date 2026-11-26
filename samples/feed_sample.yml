@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Пример товарного фида в формате YML (Яндекс.Маркет) для проверки импорта.
+     Артикулы и цены условные. Атрибуты ПО можно передать параметрами <param>,
+     а если их нет — они распознаются из наименования (срок, число пользователей, продление). -->
+<yml_catalog date="2026-11-26 12:00">
+  <shop>
+    <name>Демо-магазин ПО</name>
+    <currencies><currency id="RUR" rate="1"/></currencies>
+    <categories>
+      <category id="1">Антивирусы и безопасность</category>
+      <category id="2" parentId="1">Антивирусы для организаций</category>
+      <category id="3">Почтовые серверы</category>
+    </categories>
+    <offers>
+      <offer id="10001" available="true">
+        <url>https://store.example.ru/product/esa-business</url>
+        <price>2450.00</price>
+        <currencyId>RUR</currencyId>
+        <categoryId>2</categoryId>
+        <vendor>Демо Секьюрити</vendor>
+        <vendorCode>DS-EP-N-1Y-25-49</vendorCode>
+        <name>Демо Endpoint Protection Business, 25-49 узлов, 1 год, новая лицензия</name>
+        <description>Защита рабочих станций и файловых серверов, централизованная консоль.</description>
+        <param name="Редакция">Business</param>
+        <param name="Реестр российского ПО">Да</param>
+        <param name="НДС">Без НДС</param>
+        <param name="Платформа">Windows, Linux</param>
+      </offer>
+      <offer id="10002" available="true">
+        <price>1470.00</price>
+        <categoryId>2</categoryId>
+        <vendor>Демо Секьюрити</vendor>
+        <vendorCode>DS-EP-R-1Y-25-49</vendorCode>
+        <name>Демо Endpoint Protection Business, 25-49 узлов, 1 год, продление</name>
+        <param name="Реестр российского ПО">Да</param>
+        <param name="НДС">Без НДС</param>
+      </offer>
+      <offer id="10003" available="true">
+        <price>39900</price>
+        <categoryId>3</categoryId>
+        <vendor>Demo Mail Inc.</vendor>
+        <vendorCode>DM-SRV-50</vendorCode>
+        <name>Demo Mail Server Pro на 50 пользователей</name>
+        <description>Почтовый сервер для Windows.</description>
+        <param name="Срок действия лицензии">12 месяцев</param>
+        <param name="Тип лицензии">Новая лицензия</param>
+        <param name="Развертывание">On-premise</param>
+      </offer>
+    </offers>
+  </shop>
+</yml_catalog>

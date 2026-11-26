@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% block title %}Статья базы знаний{% endblock %}
+{% block content %}
+<h1>{{ 'Статья' if item.id else 'Новая статья' }}</h1>
+<div class="card" style="max-width: 820px">
+  <form method="post" action="/admin/kb/save">
+    <input type="hidden" name="article_id" value="{{ item.id or '' }}">
+    <label>Вопрос (как его задают клиенты)</label>
+    <input type="text" name="question" value="{{ item.question }}" required>
+    <label>Ответ</label>
+    <textarea name="answer" rows="8" required>{{ item.answer }}</textarea>
+    <label>Ключевые слова и синонимы (помогают поиску)</label>
+    <input type="text" name="tags" value="{{ item.tags }}" placeholder="доставка курьер сроки">
+    <label><input type="checkbox" name="active" value="1" {% if item.active %}checked{% endif %}> Использовать в ответах</label>
+    <div class="row" style="margin-top: 14px">
+      <button class="btn primary" type="submit">Сохранить</button>
+      <a class="btn" href="/admin/kb">Отмена</a>
+    </div>
+  </form>
+  {% if item.id %}
+  <form method="post" action="/admin/kb/{{ item.id }}/delete" onsubmit="return confirm('Удалить статью?')" style="margin-top:14px">
+    <button class="btn danger small">Удалить статью</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
