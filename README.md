@@ -39,6 +39,25 @@ store.softline.ru). Помогает выбрать продукт и вариа
 учтены: всё работает локально на файлах-выгрузках. Внешние каналы (почта, Telegram, телефония через API)
 подготовлены, но включаются только настройками.
 
+## Запуск через Docker Compose
+
+Требуется Docker Engine с плагином Compose v2.
+
+```bash
+cp .env.example .env
+# Задайте хотя бы ADMIN_PASSWORD и SECRET_KEY в .env
+docker compose up --build -d
+```
+
+- Демо-витрина: http://localhost:8000/demo
+- Панель менеджера: http://localhost:8000/admin
+- База данных и загруженные модели хранятся в Docker volume `agent-data`
+
+Можно изменить порт хоста через `APP_PORT`, например `APP_PORT=8080 docker compose up -d`.
+Все параметры из `.env.example` поддерживаются Compose через переменные окружения.
+Остановить приложение: `docker compose down`; остановить и удалить данные:
+`docker compose down -v`.
+
 ## Запуск (Windows, PowerShell)
 
 ```powershell
